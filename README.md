@@ -39,6 +39,26 @@ Outputs:
 - **NSIS installer**: `src-tauri/target/release/bundle/nsis/OpenClaw Desktop Wizard_1.0.0_x64-setup.exe`
 - **MSI**: `src-tauri/target/release/bundle/msi/...`
 
+If you change the app icon or see a stale/gray icon in the EXE or taskbar, clean old Rust/Tauri binaries before rebuilding:
+
+```bash
+cd src-tauri
+cargo clean
+cd ..
+npm run tauri build
+```
+
+## Branding & icons
+
+- **Desktop icon (Windows)**: generated from `src-tauri/icons/supaclaw.png` into `src-tauri/icons/icon.ico` via Tauri.
+- To re-generate icons after changing the source image, run:
+
+  ```bash
+  npm run icon
+  ```
+
+  Then rebuild with `npm run tauri build` and reinstall the app.
+
 ## Project layout
 
 - `src/` – React + Vite frontend (wizard UI).
