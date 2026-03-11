@@ -421,7 +421,6 @@ pub async fn run_onboard(
     install_dir: String,
     downloaded_path: Option<String>,
     args: Vec<String>,
-    config: Option<JsonValue>,
 ) -> Result<(), String> {
     let exe_path = resolve_openclaw_exe(&install_dir, downloaded_path.as_deref())?;
     let cwd = exe_path.parent().ok_or("Invalid exe path")?;
@@ -435,61 +434,36 @@ pub async fn run_onboard(
             cmd.arg(trimmed);
         }
     }
-    let status = cmd
-        .current_dir(cwd)
-        .status()
-        .map_err(|e| e.to_string())?;
+    let output = cmd.current_dir(cwd).output().map_err(|e| e.to_string())?;
 
-    if !status.success() {
-        return Err("openclaw onboard --non-interactive failed".to_string());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    let mut ok = output.status.success();
+
+    // Special-case: onboarding succeeded in writing config but failed while
+    // probing a local gateway (e.g. abnormal WebSocket closure). In this case
+    // we still want the desktop wizard to proceed as long as the config file
+    // was written.
+    if !ok
+        && stderr.contains("Config overwrite:")
+        && stderr.contains("Error: gateway closed")
+    {
+        ok = true;
     }
 
-    if let Some(fragment) = config {
-        merge_openclaw_config(fragment)?;
-    }
-
-    Ok(())
-}
-
-fn merge_json(target: &mut JsonValue, patch: &JsonValue) {
-    use serde_json::Value;
-    match (target, patch) {
-        (Value::Object(ref mut to), Value::Object(from)) => {
-            for (k, v) in from {
-                match to.get_mut(k) {
-                    Some(existing) => merge_json(existing, v),
-                    None => {
-                        to.insert(k.clone(), v.clone());
-                    }
-                }
-            }
+    if !ok {
+        let code = output.status.code().unwrap_or(-1);
+        let mut msg = format!("openclaw onboard --non-interactive failed (exit code {code})");
+        if !stderr.trim().is_empty() {
+            msg.push_str(" - stderr: ");
+            msg.push_str(stderr.trim());
+        } else if !stdout.trim().is_empty() {
+            msg.push_str(" - stdout: ");
+            msg.push_str(stdout.trim());
         }
-        (t, p) => {
-            *t = p.clone();
-        }
+        return Err(msg);
     }
-}
-
-fn merge_openclaw_config(fragment: JsonValue) -> Result<(), String> {
-    let home = dirs::home_dir().ok_or_else(|| "Could not determine user home directory".to_string())?;
-    let config_dir = home.join(".openclaw");
-    retry_io(|| std::fs::create_dir_all(&config_dir)).map_err(|e| e.to_string())?;
-
-    let target = config_dir.join("openclaw.json");
-    let tmp = target.with_extension("json.part");
-
-    let mut base: JsonValue = if target.exists() {
-        let data = std::fs::read(&target).map_err(|e| e.to_string())?;
-        serde_json::from_slice(&data).unwrap_or(JsonValue::Object(Default::default()))
-    } else {
-        JsonValue::Object(Default::default())
-    };
-
-    merge_json(&mut base, &fragment);
-
-    let data = serde_json::to_vec_pretty(&base).map_err(|e| e.to_string())?;
-    retry_io(|| std::fs::write(&tmp, &data)).map_err(|e| e.to_string())?;
-    retry_io(|| std::fs::rename(&tmp, &target)).map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -535,6 +509,17 @@ pub async fn write_openclaw_config(
     retry_io(|| std::fs::write(&tmp, &data)).map_err(|e| e.to_string())?;
     retry_io(|| std::fs::rename(&tmp, &target)).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+#[tauri::command]
+pub async fn read_openclaw_config() -> Result<String, String> {
+    let home = dirs::home_dir().ok_or_else(|| "Could not determine user home directory".to_string())?;
+    let config_path = home.join(".openclaw").join("openclaw.json");
+    if !config_path.exists() {
+        return Ok(String::from("{\n}\n"));
+    }
+    let data = std::fs::read_to_string(&config_path).map_err(|e| e.to_string())?;
+    Ok(data)
 }
 
 #[tauri::command]

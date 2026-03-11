@@ -1,68 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { WizardState } from "../App";
-
-type OnboardFlag = {
-  flag: string;
-  description: string;
-};
-
-function parseOnboardFlags(helpText: string): OnboardFlag[] {
-  const seen = new Set<string>();
-  const out: OnboardFlag[] = [];
-  const lines = helpText.split(/\r?\n/);
-  for (const raw of lines) {
-    const line = raw.trimEnd();
-    if (!line.includes("--")) continue;
-
-    // Common clap/help style:
-    //   -y, --yes     ...
-    //       --foo     ...
-    const m =
-      line.match(/^\s*(?:-[A-Za-z],\s*)?(--[A-Za-z0-9][A-Za-z0-9-]*)(?:[ =][A-Z\[\]<>{}a-z0-9_-]+)?\s+(.*)$/) ??
-      line.match(/^\s*(--[A-Za-z0-9][A-Za-z0-9-]*)(?:[ =][A-Z\[\]<>{}a-z0-9_-]+)?\s*(.*)$/);
-    if (!m) continue;
-    const flag = m[1];
-    const description = (m[2] ?? "").trim();
-    if (seen.has(flag)) continue;
-    seen.add(flag);
-    out.push({ flag, description });
-  }
-  return out;
-}
-
-function splitArgs(input: string): string[] {
-  const s = input.trim();
-  if (!s) return [];
-  const args: string[] = [];
-  let cur = "";
-  let quote: "'" | '"' | null = null;
-  for (let i = 0; i < s.length; i++) {
-    const ch = s[i];
-    if (quote) {
-      if (ch === quote) {
-        quote = null;
-      } else {
-        cur += ch;
-      }
-      continue;
-    }
-    if (ch === '"' || ch === "'") {
-      quote = ch;
-      continue;
-    }
-    if (/\s/.test(ch)) {
-      if (cur) {
-        args.push(cur);
-        cur = "";
-      }
-      continue;
-    }
-    cur += ch;
-  }
-  if (cur) args.push(cur);
-  return args;
-}
 
 interface Props {
   state: WizardState;
@@ -73,76 +11,38 @@ interface Props {
 }
 
 export function StepConfigure({ state, setState, setError, onNext, onBack }: Props) {
-  const [helpText, setHelpText] = useState<string>("");
-  const [loadingHelp, setLoadingHelp] = useState(false);
-  const [selectedFlags, setSelectedFlags] = useState<Record<string, boolean>>({});
-  const [extraArgs, setExtraArgs] = useState("");
   const [running, setRunning] = useState(false);
-  const defaultsAppliedRef = useRef(false);
-
-  const flags = useMemo(() => parseOnboardFlags(helpText), [helpText]);
-
-  useEffect(() => {
-    if (defaultsAppliedRef.current) return;
-    if (flags.length === 0) return;
-    defaultsAppliedRef.current = true;
-    setSelectedFlags((prev) => {
-      // Don't override any existing user selection (if present)
-      const next: Record<string, boolean> = { ...prev };
-      for (const f of flags) {
-        if (typeof next[f.flag] === "boolean") continue;
-        if (f.flag.startsWith("--skip-")) next[f.flag] = true;
-      }
-      return next;
-    });
-  }, [flags]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!state.installPath) return;
-    setLoadingHelp(true);
-    invoke<string>("get_onboard_help", {
-      installDir: state.installPath,
-      downloadedPath: state.downloadPath?.trim() || null,
-    })
-      .then((t) => {
-        if (cancelled) return;
-        setHelpText(t);
-      })
-      .catch(() => {
-        // If help isn't available, we still allow manual args.
-      })
-      .finally(() => {
-        if (cancelled) return;
-        setLoadingHelp(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [state.installPath]);
+  const [configText, setConfigText] = useState<string>("");
+  const [configDirty, setConfigDirty] = useState(false);
+  const [configParseError, setConfigParseError] = useState<string | null>(null);
 
   const handleRunOnboardNonInteractive = async () => {
     setError(null);
     setRunning(true);
     try {
-      const chosen = Object.entries(selectedFlags)
-        .filter(([, v]) => v)
-        .map(([k]) => k);
-      const args = [...chosen, ...splitArgs(extraArgs)];
-      if (!args.includes("--accept-risk")) {
-        args.push("--accept-risk");
-      }
-      const config = {
-        cliDefaults: {
-          onboardArgs: args,
-        },
-      };
+      const args: string[] = ["--accept-risk"];
       await invoke("run_onboard", {
         installDir: state.installPath,
         downloadedPath: state.downloadPath?.trim() || null,
         args,
-        config,
       });
+      let text = await invoke<string>("read_openclaw_config");
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed && typeof parsed === "object" && (parsed as any).bind === "loopback") {
+          (parsed as any).bind = "lan";
+          await invoke("write_openclaw_config", {
+            installDir: state.installPath,
+            config: parsed,
+          });
+          text = JSON.stringify(parsed, null, 2) + "\n";
+        }
+      } catch {
+        // If the existing config isn't valid JSON, just surface it as-is in the editor.
+      }
+      setConfigText(text);
+      setConfigDirty(false);
+      setConfigParseError(null);
       setState({ configSaved: true });
     } catch (e) {
       setError(String(e));
@@ -167,79 +67,20 @@ export function StepConfigure({ state, setState, setError, onNext, onBack }: Pro
       <div style={{ marginTop: 16 }}>
         <h3 style={{ margin: "12px 0 8px" }}>Non-interactive onboarding</h3>
         <p>
-          This runs <code>openclaw onboard --non-interactive --accept-risk</code> with the selected options. On Windows,
+          This runs <code>openclaw onboard --non-interactive --accept-risk</code> using OpenClaw defaults. On Windows,
           onboarding saves configuration to <code>%USERPROFILE%\.openclaw\openclaw.json</code>, the default OpenClaw config
           path (see <code>https://docs.openclaw.ai/cli/onboard</code> and{" "}
           <code>https://docs.openclaw.ai/security</code>).
         </p>
 
-        {loadingHelp ? (
-          <p className="loading">
-            <span className="spinner" /> Loading onboarding options…
-          </p>
-        ) : flags.length > 0 ? (
-          <div style={{ display: "grid", gap: 8, margin: "10px 0" }}>
-            {flags.map((f) => (
-              <label key={f.flag} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                <input
-                  type="checkbox"
-                  checked={Boolean(selectedFlags[f.flag])}
-                  onChange={(e) =>
-                    setSelectedFlags((s) => ({
-                      ...s,
-                      [f.flag]: e.target.checked,
-                    }))
-                  }
-                />
-                <span>
-                  <code>{f.flag}</code>
-                  {f.description ? <span style={{ marginLeft: 10, opacity: 0.85 }}>{f.description}</span> : null}
-                </span>
-              </label>
-            ))}
-          </div>
-        ) : (
-          <p className="loading">
-            No onboard flags detected from <code>--help</code>. You can still run onboarding using manual args below.
-          </p>
-        )}
-
-        <label style={{ display: "block", marginTop: 10 }}>
-          <div style={{ fontWeight: 600, marginBottom: 6 }}>Extra args (optional)</div>
-          <input
-            value={extraArgs}
-            onChange={(e) => setExtraArgs(e.target.value)}
-            placeholder='Example: --profile "my-profile" --yes'
-            spellCheck={false}
-          />
-        </label>
-
         <div className="step-actions" style={{ marginTop: 12 }}>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => {
-              defaultsAppliedRef.current = false;
-              setSelectedFlags({});
-              setExtraArgs("");
-            }}
-            disabled={running}
-          >
-            Reset
-          </button>
           {!state.configSaved ? (
             <button
               type="button"
               className="btn btn-primary"
               onClick={handleRunOnboardNonInteractive}
-              disabled={running || loadingHelp || !state.installPath}
-              title={
-                !state.installPath
-                  ? "Install OpenClaw first"
-                  : loadingHelp
-                    ? "Loading onboarding options…"
-                    : undefined
-              }
+              disabled={running || !state.installPath}
+              title={!state.installPath ? "Install OpenClaw first" : undefined}
             >
               {running ? (
                 <>
@@ -255,6 +96,89 @@ export function StepConfigure({ state, setState, setError, onNext, onBack }: Pro
           )}
         </div>
       </div>
+
+      {state.configSaved && (
+        <div style={{ marginTop: 24 }}>
+          <h3 style={{ margin: "12px 0 8px" }}>Edit openclaw.json</h3>
+          <p>
+            This is the current contents of <code>%USERPROFILE%\.openclaw\openclaw.json</code>. You can edit it directly
+            here and save.
+          </p>
+          <textarea
+            value={configText}
+            onChange={(e) => {
+              setConfigText(e.target.value);
+              setConfigDirty(true);
+              // Lightweight live JSON validation
+              const raw = e.target.value.trim();
+              if (!raw) {
+                setConfigParseError("openclaw.json cannot be empty.");
+              } else {
+                try {
+                  JSON.parse(raw);
+                  setConfigParseError(null);
+                } catch {
+                  setConfigParseError("Invalid JSON: fix syntax before saving.");
+                }
+              }
+            }}
+            spellCheck={false}
+            style={{ width: "100%", minHeight: 220, fontFamily: "monospace", fontSize: 12 }}
+          />
+          {configParseError && (
+            <p className="error-text" style={{ color: "#d33", marginTop: 6 }}>
+              {configParseError}
+            </p>
+          )}
+          <div className="step-actions" style={{ marginTop: 12 }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={async () => {
+                try {
+                  const fresh = await invoke<string>("read_openclaw_config");
+                  setConfigText(fresh);
+                  setConfigDirty(false);
+                  setConfigParseError(null);
+                } catch (e) {
+                  setError(String(e));
+                }
+              }}
+              disabled={running}
+            >
+              Reload from disk
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={async () => {
+                setError(null);
+                setRunning(true);
+                try {
+                  let parsed: unknown;
+                  try {
+                    parsed = JSON.parse(configText);
+                  } catch {
+                    throw new Error("openclaw.json must be valid JSON before saving.");
+                  }
+                  await invoke("write_openclaw_config", {
+                    installDir: state.installPath,
+                    config: parsed,
+                  });
+                  setConfigDirty(false);
+                } catch (e) {
+                  setError(String(e));
+                } finally {
+                  setRunning(false);
+                }
+              }}
+              disabled={running || !configDirty || Boolean(configParseError)}
+            >
+              Save openclaw.json
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="step-actions">
         <button type="button" className="btn btn-secondary" onClick={onBack}>

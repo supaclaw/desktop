@@ -35,6 +35,7 @@ pub fn run() {
             commands::run_onboard,
             commands::install_skills_tools,
             commands::write_openclaw_config,
+            commands::read_openclaw_config,
             commands::open_url,
         ])
         .run(tauri::generate_context!())
