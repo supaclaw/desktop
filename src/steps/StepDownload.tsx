@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { WizardState } from "../App";
+import type { Language } from "../i18n";
 
 interface Props {
+  language: Language;
   state: WizardState;
   setState: (patch: Partial<WizardState>) => void;
   setError: (e: string | null) => void;
@@ -11,7 +13,7 @@ interface Props {
   onBack: () => void;
 }
 
-export function StepDownload({ state, setState, setError, onNext, onBack }: Props) {
+export function StepDownload({ language, state, setState, setError, onNext, onBack }: Props) {
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [logs, setLogs] = useState<string[]>([]);
@@ -76,25 +78,39 @@ export function StepDownload({ state, setState, setError, onNext, onBack }: Prop
 
   return (
     <div className="step-card">
-      <h2>Download OpenClaw</h2>
+      <h2>{language === "zh" ? "下载 OpenClaw" : "Download OpenClaw"}</h2>
       {usingCustomUrl ? (
         <p>
-          Download from <strong>custom URL</strong>: <code>{state.downloadUrl.trim()}</code>
+          {language === "zh" ? "从自定义地址下载：" : "Download from "}
+          {language === "zh" ? (
+            <>
+              <strong>自定义 URL</strong>：<code>{state.downloadUrl.trim()}</code>
+            </>
+          ) : (
+            <>
+              <strong>custom URL</strong>: <code>{state.downloadUrl.trim()}</code>
+            </>
+          )}
         </p>
       ) : (
         <p>
-          Download <strong>{state.selectedAsset}</strong> from release{" "}
-          <strong>{state.selectedVersion}</strong>.
+          {language === "zh" ? "从发布版本 " : "Download "}
+          <strong>{state.selectedAsset}</strong>
+          {language === "zh" ? "（版本 " : " from release "}
+          <strong>{state.selectedVersion}</strong>
+          {language === "zh" ? "）进行下载。" : "."}
         </p>
       )}
       {state.httpsProxy?.trim() && (
         <p className="field-hint">
-          Using proxy: <code>{state.httpsProxy.trim()}</code>
+          {language === "zh" ? "使用代理：" : "Using proxy:"}{" "}
+          <code>{state.httpsProxy.trim()}</code>
         </p>
       )}
       {state.downloadPath && (
         <p className="loading">
-          Saved to: <code>{state.downloadPath}</code>
+          {language === "zh" ? "已保存到：" : "Saved to:"}{" "}
+          <code>{state.downloadPath}</code>
         </p>
       )}
       <div style={{ display: downloading ? "block" : "none" }}>
@@ -121,7 +137,7 @@ export function StepDownload({ state, setState, setError, onNext, onBack }: Prop
       </div>
       <div className="step-actions">
         <button type="button" className="btn btn-secondary" onClick={onBack}>
-          Back
+          {language === "zh" ? "上一步" : "Back"}
         </button>
         {!state.downloadPath ? (
           <button
@@ -136,15 +152,15 @@ export function StepDownload({ state, setState, setError, onNext, onBack }: Prop
             {downloading ? (
               <>
                 <span className="spinner" />
-                Downloading…
+                {language === "zh" ? "正在下载…" : "Downloading…"}
               </>
             ) : (
-              "Download"
+              language === "zh" ? "开始下载" : "Download"
             )}
           </button>
         ) : (
           <button type="button" className="btn btn-primary" onClick={onNext}>
-            Next: Install
+            {language === "zh" ? "下一步：安装" : "Next: Install"}
           </button>
         )}
       </div>

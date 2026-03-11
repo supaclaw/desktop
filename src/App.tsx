@@ -9,16 +9,17 @@ import { StepConfigure } from "./steps/StepConfigure";
 import { StepGateway } from "./steps/StepGateway";
 import { StepSkills } from "./steps/StepSkills";
 import { StepDone } from "./steps/StepDone";
+import { LANGUAGE_LABELS, STEP_TITLES, TEXT, type Language } from "./i18n";
 import "./App.css";
 
 const STEPS = [
-  { id: "welcome", title: "Welcome" },
-  { id: "download", title: "Download" },
-  { id: "install", title: "Install" },
-  { id: "configure", title: "Configure" },
-  { id: "gateway", title: "Gateway" },
-  { id: "skills", title: "Skills & Tools" },
-  { id: "done", title: "Done" },
+  { id: "welcome" },
+  { id: "download" },
+  { id: "install" },
+  { id: "configure" },
+  { id: "gateway" },
+  { id: "skills" },
+  { id: "done" },
 ] as const;
 
 export type StepId = (typeof STEPS)[number]["id"];
@@ -64,6 +65,7 @@ function App() {
   const [stepIndex, setStepIndex] = useState(0);
   const [state, setState] = useState<WizardState>(defaultState);
   const [error, setError] = useState<string | null>(null);
+  const [language, setLanguage] = useState<Language>("zh");
 
   const stepId = STEPS[stepIndex].id;
 
@@ -133,14 +135,22 @@ function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>OpenClaw Desktop Wizard</h1>
+        <h1>{TEXT.appTitle[language]}</h1>
+        <button
+          type="button"
+          className="language-toggle"
+          onClick={() => setLanguage((prev) => (prev === "en" ? "zh" : "en"))}
+          aria-label={language === "en" ? "Switch to Chinese" : "切换到英文"}
+        >
+          {language === "en" ? "EN" : "中文"}
+        </button>
         <nav className="step-nav">
           {STEPS.map((s, i) => (
             <button
               key={s.id}
               type="button"
               className={`step-dot ${i === stepIndex ? "active" : ""} ${i < stepIndex ? "done" : ""}`}
-              title={s.title}
+              title={STEP_TITLES[s.id][language]}
               onClick={() => goTo(s.id)}
               aria-current={i === stepIndex ? "step" : undefined}
             >
@@ -162,6 +172,7 @@ function App() {
 
         {stepId === "welcome" && (
           <StepWelcome
+            language={language}
             state={state}
             setState={setStatePartial}
             setError={setError}
@@ -170,6 +181,7 @@ function App() {
         )}
         {stepId === "download" && (
           <StepDownload
+            language={language}
             state={state}
             setState={setStatePartial}
             setError={setError}
@@ -179,6 +191,7 @@ function App() {
         )}
         {stepId === "install" && (
           <StepInstall
+            language={language}
             state={state}
             setState={setStatePartial}
             setError={setError}
@@ -188,6 +201,7 @@ function App() {
         )}
         {stepId === "configure" && (
           <StepConfigure
+            language={language}
             state={state}
             setState={setStatePartial}
             setError={setError}
@@ -197,6 +211,7 @@ function App() {
         )}
         {stepId === "gateway" && (
           <StepGateway
+            language={language}
             state={state}
             setState={setStatePartial}
             setError={setError}
@@ -206,6 +221,7 @@ function App() {
         )}
         {stepId === "skills" && (
           <StepSkills
+            language={language}
             state={state}
             setState={setStatePartial}
             setError={setError}
@@ -214,7 +230,7 @@ function App() {
           />
         )}
         {stepId === "done" && (
-          <StepDone state={state} onBack={goBack} />
+          <StepDone language={language} state={state} onBack={goBack} />
         )}
       </main>
     </div>

@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { WizardState } from "../App";
+import type { Language } from "../i18n";
 
 interface Props {
+  language: Language;
   state: WizardState;
   setState: (patch: Partial<WizardState>) => void;
   setError: (e: string | null) => void;
@@ -10,7 +12,7 @@ interface Props {
   onBack: () => void;
 }
 
-export function StepInstall({ state, setState, setError, onNext, onBack }: Props) {
+export function StepInstall({ language, state, setState, setError, onNext, onBack }: Props) {
   const [installing, setInstalling] = useState(false);
 
   useEffect(() => {
@@ -46,28 +48,44 @@ export function StepInstall({ state, setState, setError, onNext, onBack }: Props
 
   return (
     <div className="step-card">
-      <h2>Install OpenClaw</h2>
-      <p>
-        Extract or copy the downloaded file to an install directory. You can
-        change the path below.
-      </p>
-      <label>Downloaded file path (.zip or .exe)</label>
+      <h2>{language === "zh" ? "安装 OpenClaw" : "Install OpenClaw"}</h2>
+      {language === "zh" ? (
+        <p>
+          请将下载的文件解压或复制到安装目录。你可以在下面修改路径。
+        </p>
+      ) : (
+        <p>
+          Extract or copy the downloaded file to an install directory. You can
+          change the path below.
+        </p>
+      )}
+      <label>
+        {language === "zh" ? "下载文件路径（.zip 或 .exe）" : "Downloaded file path (.zip or .exe)"}
+      </label>
       <input
         type="text"
         value={state.downloadPath}
         onChange={(e) => setState({ downloadPath: e.target.value })}
-        placeholder="e.g. C:\Users\You\Downloads\openclaw-v1.5.0-windows-x64-portable.zip"
+        placeholder={
+          language === "zh"
+            ? "例如：C:\\Users\\You\\Downloads\\openclaw-v1.5.0-windows-x64-portable.zip"
+            : "e.g. C:\\Users\\You\\Downloads\\openclaw-v1.5.0-windows-x64-portable.zip"
+        }
       />
-      <label>Install directory</label>
+      <label>{language === "zh" ? "安装目录" : "Install directory"}</label>
       <input
         type="text"
         value={state.installPath}
         onChange={(e) => setState({ installPath: e.target.value })}
-        placeholder="e.g. C:\Users\You\AppData\Local\OpenClaw"
+        placeholder={
+          language === "zh"
+            ? "例如：C:\\Users\\You\\AppData\\Local\\OpenClaw"
+            : "e.g. C:\\Users\\You\\AppData\\Local\\OpenClaw"
+        }
       />
       <div className="step-actions">
         <button type="button" className="btn btn-secondary" onClick={onBack}>
-          Back
+          {language === "zh" ? "上一步" : "Back"}
         </button>
         <button
           type="button"
@@ -78,10 +96,10 @@ export function StepInstall({ state, setState, setError, onNext, onBack }: Props
           {installing ? (
             <>
               <span className="spinner" />
-              Installing…
+              {language === "zh" ? "正在安装…" : "Installing…"}
             </>
           ) : (
-            "Install"
+            language === "zh" ? "开始安装" : "Install"
           )}
         </button>
       </div>

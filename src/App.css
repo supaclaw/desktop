@@ -10,6 +10,7 @@
   background: #fff;
   border-bottom: 1px solid #dee2e6;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  position: relative;
 }
 
 .app-header h1 {
@@ -17,6 +18,27 @@
   font-size: 1.25rem;
   font-weight: 600;
   color: #212529;
+}
+
+.language-toggle {
+  position: absolute;
+  top: 1rem;
+  right: 1.5rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #ced4da;
+  background: #f8f9fa;
+  color: #495057;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.language-toggle:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.15);
 }
 
 .step-nav {
