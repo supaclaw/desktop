@@ -3,11 +3,17 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::process::Command;
 use tauri::{AppHandle, Emitter};
+use tokio::io::AsyncWriteExt;
 
 const GITHUB_API_RELEASES: &str = "https://api.github.com/repos/supaclaw/openclaw/releases";
 
 fn build_http_client(proxy_url: Option<&str>) -> Result<reqwest::Client, String> {
-    let mut builder = reqwest::Client::builder().user_agent("OpenClaw-Desktop-Wizard/1.0");
+    let mut builder = reqwest::Client::builder()
+        .user_agent("OpenClaw-Desktop-Wizard/1.0")
+        // Avoid indefinite hangs on connect / TLS handshake / stalled transfers.
+        .connect_timeout(std::time::Duration::from_secs(20))
+        .timeout(std::time::Duration::from_secs(10 * 60))
+        .tcp_keepalive(std::time::Duration::from_secs(30));
     if let Some(url) = proxy_url {
         let url = url.trim();
         if !url.is_empty() {
@@ -23,6 +29,10 @@ pub struct DownloadProgress {
     pub loaded: u64,
     pub total: Option<u64>,
     pub done: bool,
+}
+
+fn emit_download_log(app: &AppHandle, message: impl Into<String>) {
+    let _ = app.emit("download-log", message.into());
 }
 
 #[tauri::command]
@@ -52,6 +62,16 @@ pub async fn download_openclaw(
 ) -> Result<PathBuf, String> {
     let client = build_http_client(proxy_url.as_deref())?;
 
+    emit_download_log(
+        &app,
+        format!(
+            "Starting download. version={} asset={} proxy={}",
+            version,
+            asset_name,
+            proxy_url.as_deref().unwrap_or("<none>")
+        ),
+    );
+
     let releases = fetch_openclaw_releases(proxy_url.clone()).await?;
     let release = releases
         .into_iter()
@@ -65,6 +85,7 @@ pub async fn download_openclaw(
         .ok_or_else(|| format!("Asset {} not found", asset_name))?;
 
     let url = asset.browser_download_url;
+    emit_download_log(&app, format!("Requesting asset URL: {}", url));
 
     let resp = client
         .get(&url)
@@ -77,20 +98,66 @@ pub async fn download_openclaw(
     }
 
     let total = resp.content_length();
-    let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
+    emit_download_log(
+        &app,
+        format!(
+            "Response OK. content_length={}",
+            total.map(|t| t.to_string()).unwrap_or_else(|| "<unknown>".into())
+        ),
+    );
 
     let download_dir = dirs::download_dir().ok_or("Could not find Downloads directory")?;
     let file_path = download_dir.join(&asset_name);
 
-    tokio::fs::write(&file_path, &bytes)
+    // Stream to disk and emit progress, instead of buffering the whole response in memory.
+    let tmp_path = file_path.with_extension("part");
+    let mut file = tokio::fs::File::create(&tmp_path)
         .await
         .map_err(|e| e.to_string())?;
 
-    let _ = app.emit("download-progress", DownloadProgress {
-        loaded: bytes.len() as u64,
-        total,
-        done: true,
-    });
+    let mut loaded: u64 = 0;
+    let mut stream = resp.bytes_stream();
+    let mut last_emit = std::time::Instant::now();
+
+    use futures_util::StreamExt;
+    while let Some(chunk_res) = stream.next().await {
+        let chunk = chunk_res.map_err(|e| e.to_string())?;
+        if chunk.is_empty() {
+            continue;
+        }
+        file.write_all(&chunk).await.map_err(|e| e.to_string())?;
+        loaded = loaded.saturating_add(chunk.len() as u64);
+
+        // Emit at most ~4 times/sec to avoid flooding the UI.
+        if last_emit.elapsed() >= std::time::Duration::from_millis(250) {
+            let _ = app.emit(
+                "download-progress",
+                DownloadProgress {
+                    loaded,
+                    total,
+                    done: false,
+                },
+            );
+            last_emit = std::time::Instant::now();
+        }
+    }
+
+    file.flush().await.map_err(|e| e.to_string())?;
+    drop(file);
+
+    tokio::fs::rename(&tmp_path, &file_path)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let _ = app.emit(
+        "download-progress",
+        DownloadProgress {
+            loaded,
+            total,
+            done: true,
+        },
+    );
+    emit_download_log(&app, format!("Download complete: {}", file_path.display()));
 
     Ok(file_path)
 }

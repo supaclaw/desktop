@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import type { WizardState } from "../App";
 
 interface Props {
@@ -13,11 +14,47 @@ interface Props {
 export function StepDownload({ state, setState, setError, onNext, onBack }: Props) {
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [logs, setLogs] = useState<string[]>([]);
+  const lastPctRef = useRef(0);
+
+  useEffect(() => {
+    if (!downloading) return;
+
+    lastPctRef.current = 0;
+
+    const unlistenProgress = listen<{ loaded: number; total?: number; done: boolean }>(
+      "download-progress",
+      (e) => {
+        const { loaded, total, done } = e.payload;
+        if (typeof total === "number" && total > 0) {
+          const pct = Math.max(0, Math.min(100, Math.floor((loaded / total) * 100)));
+          if (pct > lastPctRef.current) {
+            lastPctRef.current = pct;
+            setProgress(pct);
+          }
+        }
+        if (done && lastPctRef.current !== 100) {
+          lastPctRef.current = 100;
+          setProgress(100);
+        }
+      }
+    );
+
+    const unlistenLog = listen<string>("download-log", (e) => {
+      setLogs((prev) => [...prev, e.payload]);
+    });
+
+    return () => {
+      unlistenProgress.then((fn) => fn());
+      unlistenLog.then((fn) => fn());
+    };
+  }, [downloading]);
 
   const handleDownload = async () => {
     setError(null);
     setDownloading(true);
     setProgress(0);
+    setLogs([]);
     try {
       const path = await invoke<string>("download_openclaw", {
         version: state.selectedVersion,
@@ -25,7 +62,6 @@ export function StepDownload({ state, setState, setError, onNext, onBack }: Prop
         proxyUrl: state.httpsProxy?.trim() || null,
       });
       setState({ downloadPath: path });
-      setProgress(100);
       onNext();
     } catch (e) {
       setError(String(e));
@@ -51,14 +87,28 @@ export function StepDownload({ state, setState, setError, onNext, onBack }: Prop
           Saved to: <code>{state.downloadPath}</code>
         </p>
       )}
-      {downloading && (
+      <div style={{ display: downloading ? "block" : "none" }}>
         <div className="progress-bar">
-          <div
-            className="progress-bar-fill"
-            style={{ width: `${progress}%` }}
-          />
+          <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
         </div>
-      )}
+        <pre
+          style={{
+            display: logs.length > 0 ? "block" : "none",
+            maxHeight: "10rem",
+            overflow: "auto",
+            background: "#f8f9fa",
+            border: "1px solid #dee2e6",
+            borderRadius: "6px",
+            padding: "0.75rem",
+            margin: "0 0 1rem 0",
+            color: "#212529",
+            fontSize: "0.8125rem",
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          {logs.join("\n")}
+        </pre>
+      </div>
       <div className="step-actions">
         <button type="button" className="btn btn-secondary" onClick={onBack}>
           Back
