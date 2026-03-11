@@ -44,12 +44,7 @@
     "shell": {
       "open": true
     },
-    "http": {
-      "scope": ["https://github.com/**", "https://api.github.com/**"]
-    },
-    "fs": {
-      "scope": ["$APPDATA/**", "$HOME/**", "$DOWNLOAD/**", "<currentDir>/**"]
-    },
+    "fs": {},
     "process": {
       "all": true
     }
