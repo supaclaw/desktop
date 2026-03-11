@@ -421,21 +421,75 @@ pub async fn run_onboard(
     install_dir: String,
     downloaded_path: Option<String>,
     args: Vec<String>,
+    config: Option<JsonValue>,
 ) -> Result<(), String> {
     let exe_path = resolve_openclaw_exe(&install_dir, downloaded_path.as_deref())?;
     let cwd = exe_path.parent().ok_or("Invalid exe path")?;
 
     let mut cmd = Command::new(&exe_path);
     cmd.arg("onboard");
+    cmd.arg("--non-interactive");
     for a in args {
         let trimmed = a.trim();
         if !trimmed.is_empty() {
             cmd.arg(trimmed);
         }
     }
-    cmd.current_dir(cwd)
-        .spawn()
+    let status = cmd
+        .current_dir(cwd)
+        .status()
         .map_err(|e| e.to_string())?;
+
+    if !status.success() {
+        return Err("openclaw onboard --non-interactive failed".to_string());
+    }
+
+    if let Some(fragment) = config {
+        merge_openclaw_config(fragment)?;
+    }
+
+    Ok(())
+}
+
+fn merge_json(target: &mut JsonValue, patch: &JsonValue) {
+    use serde_json::Value;
+    match (target, patch) {
+        (Value::Object(ref mut to), Value::Object(from)) => {
+            for (k, v) in from {
+                match to.get_mut(k) {
+                    Some(existing) => merge_json(existing, v),
+                    None => {
+                        to.insert(k.clone(), v.clone());
+                    }
+                }
+            }
+        }
+        (t, p) => {
+            *t = p.clone();
+        }
+    }
+}
+
+fn merge_openclaw_config(fragment: JsonValue) -> Result<(), String> {
+    let home = dirs::home_dir().ok_or_else(|| "Could not determine user home directory".to_string())?;
+    let config_dir = home.join(".openclaw");
+    retry_io(|| std::fs::create_dir_all(&config_dir)).map_err(|e| e.to_string())?;
+
+    let target = config_dir.join("openclaw.json");
+    let tmp = target.with_extension("json.part");
+
+    let mut base: JsonValue = if target.exists() {
+        let data = std::fs::read(&target).map_err(|e| e.to_string())?;
+        serde_json::from_slice(&data).unwrap_or(JsonValue::Object(Default::default()))
+    } else {
+        JsonValue::Object(Default::default())
+    };
+
+    merge_json(&mut base, &fragment);
+
+    let data = serde_json::to_vec_pretty(&base).map_err(|e| e.to_string())?;
+    retry_io(|| std::fs::write(&tmp, &data)).map_err(|e| e.to_string())?;
+    retry_io(|| std::fs::rename(&tmp, &target)).map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -467,10 +521,13 @@ pub async fn write_openclaw_config(
     install_dir: String,
     config: JsonValue,
 ) -> Result<(), String> {
-    let install_path = PathBuf::from(&install_dir);
-    retry_io(|| std::fs::create_dir_all(&install_path)).map_err(|e| e.to_string())?;
+    let _ = install_dir; // kept for API compatibility; config is stored in user profile
 
-    let target = install_path.join("openclaw.json");
+    let home = dirs::home_dir().ok_or_else(|| "Could not determine user home directory".to_string())?;
+    let config_dir = home.join(".openclaw");
+    retry_io(|| std::fs::create_dir_all(&config_dir)).map_err(|e| e.to_string())?;
+
+    let target = config_dir.join("openclaw.json");
     let tmp = target.with_extension("json.part");
 
     let data = serde_json::to_vec_pretty(&config).map_err(|e| e.to_string())?;

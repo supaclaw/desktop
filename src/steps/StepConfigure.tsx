@@ -121,7 +121,7 @@ export function StepConfigure({ state, setState, setError, onNext, onBack }: Pro
     };
   }, [state.installPath]);
 
-  const handleSaveConfig = async () => {
+  const handleRunOnboardNonInteractive = async () => {
     setError(null);
     setRunning(true);
     try {
@@ -129,13 +129,19 @@ export function StepConfigure({ state, setState, setError, onNext, onBack }: Pro
         .filter(([, v]) => v)
         .map(([k]) => k);
       const args = [...chosen, ...splitArgs(extraArgs)];
-      await invoke("write_openclaw_config", {
-        installDir: state.installPath,
-        config: {
-          cliDefaults: {
-            onboardArgs: args,
-          },
+      if (!args.includes("--accept-risk")) {
+        args.push("--accept-risk");
+      }
+      const config = {
+        cliDefaults: {
+          onboardArgs: args,
         },
+      };
+      await invoke("run_onboard", {
+        installDir: state.installPath,
+        downloadedPath: state.downloadPath?.trim() || null,
+        args,
+        config,
       });
       setState({ configSaved: true });
     } catch (e) {
@@ -159,10 +165,12 @@ export function StepConfigure({ state, setState, setError, onNext, onBack }: Pro
       </p>
 
       <div style={{ marginTop: 16 }}>
-        <h3 style={{ margin: "12px 0 8px" }}>Save config</h3>
+        <h3 style={{ margin: "12px 0 8px" }}>Non-interactive onboarding</h3>
         <p>
-          Pick options below (if available for your OpenClaw version) and save them into <code>openclaw.json</code> in the
-          install directory.
+          This runs <code>openclaw onboard --non-interactive --accept-risk</code> with the selected options. On Windows,
+          onboarding saves configuration to <code>%USERPROFILE%\.openclaw\openclaw.json</code>, the default OpenClaw config
+          path (see <code>https://docs.openclaw.ai/cli/onboard</code> and{" "}
+          <code>https://docs.openclaw.ai/security</code>).
         </p>
 
         {loadingHelp ? (
@@ -223,7 +231,7 @@ export function StepConfigure({ state, setState, setError, onNext, onBack }: Pro
             <button
               type="button"
               className="btn btn-primary"
-              onClick={handleSaveConfig}
+              onClick={handleRunOnboardNonInteractive}
               disabled={running || loadingHelp || !state.installPath}
               title={
                 !state.installPath
@@ -236,14 +244,14 @@ export function StepConfigure({ state, setState, setError, onNext, onBack }: Pro
               {running ? (
                 <>
                   <span className="spinner" />
-                  Saving…
+                  Starting non-interactive onboarding…
                 </>
               ) : (
-                "Save openclaw.json"
+                "Run openclaw onboard --non-interactive"
               )}
             </button>
           ) : (
-            <p className="loading">Config saved to openclaw.json.</p>
+            <p className="loading">Non-interactive onboarding has been triggered.</p>
           )}
         </div>
       </div>
