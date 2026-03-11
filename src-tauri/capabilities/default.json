@@ -1,0 +1,13 @@
+{
+  "identifier": "main-capability",
+  "description": "Main window: invoke commands, shell, http, fs",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "shell:allow-open",
+    "http:default",
+    "dialog:default",
+    "fs:default",
+    "process:allow-spawn"
+  ]
+}
