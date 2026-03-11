@@ -7,6 +7,52 @@ use tokio::io::AsyncWriteExt;
 
 const GITHUB_API_RELEASES: &str = "https://api.github.com/repos/supaclaw/openclaw/releases";
 
+fn is_sharing_violation(err: &std::io::Error) -> bool {
+    // Windows "The process cannot access the file because it is being used by another process."
+    // surfaces as raw_os_error = 32.
+    err.raw_os_error() == Some(32)
+}
+
+fn retry_io<T>(mut f: impl FnMut() -> std::io::Result<T>) -> std::io::Result<T> {
+    let mut last_err: Option<std::io::Error> = None;
+    // ~3 seconds total (common for AV scans to release).
+    for attempt in 0..15 {
+        match f() {
+            Ok(v) => return Ok(v),
+            Err(e) if is_sharing_violation(&e) && attempt < 14 => {
+                last_err = Some(e);
+                std::thread::sleep(std::time::Duration::from_millis(200));
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    Err(last_err.unwrap_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "I/O failed")))
+}
+
+fn unique_dest_path(dir: &std::path::Path, file_name: &std::ffi::OsStr) -> PathBuf {
+    let base = dir.join(file_name);
+    if !base.exists() {
+        return base;
+    }
+    let stem = std::path::Path::new(file_name)
+        .file_stem()
+        .unwrap_or(file_name)
+        .to_os_string();
+    let ext = std::path::Path::new(file_name).extension().map(|e| e.to_os_string());
+    for i in 1..1000u32 {
+        let mut candidate_name = stem.clone();
+        candidate_name.push(format!("-{}", i));
+        let mut p = dir.join(candidate_name);
+        if let Some(ext) = ext.as_deref() {
+            p.set_extension(ext);
+        }
+        if !p.exists() {
+            return p;
+        }
+    }
+    base
+}
+
 fn build_http_client(proxy_url: Option<&str>) -> Result<reqwest::Client, String> {
     // Some corporate proxies (or MITM appliances) return incorrect `Content-Encoding`
     // headers (commonly gzip), which causes reqwest to fail with "error decoding response body".
@@ -211,7 +257,7 @@ pub async fn install_openclaw(
     }
 
     let install_path = PathBuf::from(&install_dir);
-    std::fs::create_dir_all(&install_path).map_err(|e| e.to_string())?;
+    retry_io(|| std::fs::create_dir_all(&install_path)).map_err(|e| e.to_string())?;
 
     let ext = path
         .extension()
@@ -219,27 +265,33 @@ pub async fn install_openclaw(
         .unwrap_or("");
 
     if ext.eq_ignore_ascii_case("zip") {
-        let file = std::fs::File::open(&path).map_err(|e| e.to_string())?;
+        let file = retry_io(|| std::fs::File::open(&path)).map_err(|e| e.to_string())?;
         let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
         for i in 0..archive.len() {
             let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
             let out_path = install_path.join(entry.name());
             if entry.name().ends_with('/') {
-                std::fs::create_dir_all(&out_path).map_err(|e| e.to_string())?;
+                retry_io(|| std::fs::create_dir_all(&out_path)).map_err(|e| e.to_string())?;
             } else {
                 if let Some(p) = out_path.parent() {
-                    std::fs::create_dir_all(p).map_err(|e| e.to_string())?;
+                    retry_io(|| std::fs::create_dir_all(p)).map_err(|e| e.to_string())?;
                 }
-                let mut out = std::fs::File::create(&out_path).map_err(|e| e.to_string())?;
-                std::io::copy(&mut entry, &mut out).map_err(|e| e.to_string())?;
+                let mut out = retry_io(|| std::fs::File::create(&out_path)).map_err(|e| e.to_string())?;
+                retry_io(|| std::io::copy(&mut entry, &mut out).map(|_| ())).map_err(|e| e.to_string())?;
             }
         }
         Ok(())
     } else if ext.eq_ignore_ascii_case("exe") {
-        // For .exe installer we just note where it is; user can run it or we run it
-        // Copy exe to install dir for "portable" style
-        let dest = install_path.join(path.file_name().unwrap_or_default());
-        std::fs::copy(&path, &dest).map_err(|e| e.to_string())?;
+        // If the file is already in the install directory, don't try to copy it (avoids locks/overwrite).
+        let src_dir = path.parent().map(PathBuf::from);
+        if src_dir.as_deref() == Some(&install_path) {
+            return Ok(());
+        }
+
+        // Copy exe to install dir. Avoid overwriting existing/locked files by picking a unique name.
+        let file_name = path.file_name().unwrap_or_default();
+        let dest = unique_dest_path(&install_path, file_name);
+        retry_io(|| std::fs::copy(&path, &dest).map(|_| ())).map_err(|e| e.to_string())?;
         Ok(())
     } else {
         Err(format!("Unsupported archive type: {}", ext))

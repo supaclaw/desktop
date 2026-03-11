@@ -21,16 +21,20 @@ export function StepInstall({ state, setState, setError, onNext, onBack }: Props
   }, [state.installPath, setState]);
 
   const handleInstall = async () => {
-    if (!state.downloadPath || !state.installPath) {
-      setError("Download path or install path is missing.");
+    const downloadPath = state.downloadPath.trim();
+    const installPath = state.installPath.trim();
+    if (!downloadPath || !installPath) {
+      setError(
+        "Missing path. Go back to Download, or paste the path to an existing OpenClaw .zip/.exe, and choose an install directory."
+      );
       return;
     }
     setError(null);
     setInstalling(true);
     try {
       await invoke("install_openclaw", {
-        archivePath: state.downloadPath,
-        installDir: state.installPath,
+        archivePath: downloadPath,
+        installDir: installPath,
       });
       onNext();
     } catch (e) {
@@ -47,6 +51,13 @@ export function StepInstall({ state, setState, setError, onNext, onBack }: Props
         Extract or copy the downloaded file to an install directory. You can
         change the path below.
       </p>
+      <label>Downloaded file path (.zip or .exe)</label>
+      <input
+        type="text"
+        value={state.downloadPath}
+        onChange={(e) => setState({ downloadPath: e.target.value })}
+        placeholder="e.g. C:\Users\You\Downloads\openclaw-v1.5.0-windows-x64-portable.zip"
+      />
       <label>Install directory</label>
       <input
         type="text"
@@ -62,7 +73,7 @@ export function StepInstall({ state, setState, setError, onNext, onBack }: Props
           type="button"
           className="btn btn-primary"
           onClick={handleInstall}
-          disabled={installing || !state.installPath.trim()}
+          disabled={installing || !state.installPath.trim() || !state.downloadPath.trim()}
         >
           {installing ? (
             <>
