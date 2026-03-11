@@ -37,7 +37,7 @@ export interface WizardState {
   installPath: string;
   gatewayRunning: boolean;
   skillsInstalled: boolean;
-  onboardRan: boolean;
+  configSaved: boolean;
   /** Optional HTTPS proxy URL for downloads (e.g. http://proxy.example.com:8080) */
   httpsProxy: string;
 }
@@ -53,7 +53,7 @@ const defaultState: WizardState = {
   installPath: "",
   gatewayRunning: false,
   skillsInstalled: false,
-  onboardRan: false,
+  configSaved: false,
   httpsProxy: "",
 };
 

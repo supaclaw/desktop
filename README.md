@@ -8,7 +8,7 @@ A **Tauri 2** Windows desktop app that guides you through downloading, installin
 - **Install** – Extract or copy the build to a chosen directory (default: `%LOCALAPPDATA%\OpenClaw`).
 - **Configure** – Review install path and optional PATH setup.
 - **Run gateway** – Start the OpenClaw gateway from the install directory.
-- **Install skills and tools** – Run `openclaw skills install` and `openclaw tools install` if supported.
+- **Install Skills & Tools (Coming soon)** – Not yet available in the wizard.
 
 ## Prerequisites
 

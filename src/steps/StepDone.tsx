@@ -20,7 +20,7 @@ export function StepDone({ state, onBack }: Props) {
         OpenClaw is installed at <code>{state.installPath}</code>.
         {state.gatewayRunning && " The gateway has been started."}
         {state.skillsInstalled && " Skills and tools install was triggered."}
-        {state.onboardRan && " Onboarding was triggered."}
+        {state.configSaved && " openclaw.json was saved."}
       </p>
       <p>
         For more releases and docs, visit{" "}

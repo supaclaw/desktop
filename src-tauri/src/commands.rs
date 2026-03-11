@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use tauri::{AppHandle, Emitter};
 use tokio::io::AsyncWriteExt;
+use serde_json::Value as JsonValue;
 
 const GITHUB_API_RELEASES: &str = "https://api.github.com/repos/supaclaw/openclaw/releases";
 
@@ -457,6 +458,25 @@ pub async fn install_skills_tools(
         .args(["tools", "install"])
         .current_dir(cwd)
         .spawn();
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn write_openclaw_config(
+    _app: AppHandle,
+    install_dir: String,
+    config: JsonValue,
+) -> Result<(), String> {
+    let install_path = PathBuf::from(&install_dir);
+    retry_io(|| std::fs::create_dir_all(&install_path)).map_err(|e| e.to_string())?;
+
+    let target = install_path.join("openclaw.json");
+    let tmp = target.with_extension("json.part");
+
+    let data = serde_json::to_vec_pretty(&config).map_err(|e| e.to_string())?;
+
+    retry_io(|| std::fs::write(&tmp, &data)).map_err(|e| e.to_string())?;
+    retry_io(|| std::fs::rename(&tmp, &target)).map_err(|e| e.to_string())?;
     Ok(())
 }
 

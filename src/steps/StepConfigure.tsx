@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { WizardState } from "../App";
 
@@ -78,24 +78,8 @@ export function StepConfigure({ state, setState, setError, onNext, onBack }: Pro
   const [selectedFlags, setSelectedFlags] = useState<Record<string, boolean>>({});
   const [extraArgs, setExtraArgs] = useState("");
   const [running, setRunning] = useState(false);
-  const defaultsAppliedRef = useRef(false);
 
   const flags = useMemo(() => parseOnboardFlags(helpText), [helpText]);
-
-  useEffect(() => {
-    if (defaultsAppliedRef.current) return;
-    if (flags.length === 0) return;
-    defaultsAppliedRef.current = true;
-    setSelectedFlags((prev) => {
-      // Don't override any existing user selection (if present)
-      const next: Record<string, boolean> = { ...prev };
-      for (const f of flags) {
-        if (typeof next[f.flag] === "boolean") continue;
-        if (f.flag.startsWith("--skip")) next[f.flag] = true;
-      }
-      return next;
-    });
-  }, [flags]);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,7 +105,7 @@ export function StepConfigure({ state, setState, setError, onNext, onBack }: Pro
     };
   }, [state.installPath]);
 
-  const handleRunOnboard = async () => {
+  const handleSaveConfig = async () => {
     setError(null);
     setRunning(true);
     try {
@@ -129,12 +113,15 @@ export function StepConfigure({ state, setState, setError, onNext, onBack }: Pro
         .filter(([, v]) => v)
         .map(([k]) => k);
       const args = [...chosen, ...splitArgs(extraArgs)];
-      await invoke("run_onboard", {
+      await invoke("write_openclaw_config", {
         installDir: state.installPath,
-        downloadedPath: state.downloadPath?.trim() || null,
-        args,
+        config: {
+          cliDefaults: {
+            onboardArgs: args,
+          },
+        },
       });
-      setState({ onboardRan: true });
+      setState({ configSaved: true });
     } catch (e) {
       setError(String(e));
     } finally {
@@ -156,10 +143,10 @@ export function StepConfigure({ state, setState, setError, onNext, onBack }: Pro
       </p>
 
       <div style={{ marginTop: 16 }}>
-        <h3 style={{ margin: "12px 0 8px" }}>Onboard (recommended)</h3>
+        <h3 style={{ margin: "12px 0 8px" }}>Save config</h3>
         <p>
-          This runs <code>openclaw onboard</code>. Pick options below (if available for your version) or enter extra
-          arguments manually.
+          Pick options below (if available for your OpenClaw version) and save them into <code>openclaw.json</code> in the
+          install directory.
         </p>
 
         {loadingHelp ? (
@@ -208,7 +195,6 @@ export function StepConfigure({ state, setState, setError, onNext, onBack }: Pro
             type="button"
             className="btn btn-secondary"
             onClick={() => {
-              defaultsAppliedRef.current = false;
               setSelectedFlags({});
               setExtraArgs("");
             }}
@@ -216,11 +202,11 @@ export function StepConfigure({ state, setState, setError, onNext, onBack }: Pro
           >
             Reset
           </button>
-          {!state.onboardRan ? (
+          {!state.configSaved ? (
             <button
               type="button"
               className="btn btn-primary"
-              onClick={handleRunOnboard}
+              onClick={handleSaveConfig}
               disabled={running || loadingHelp || !state.installPath}
               title={
                 !state.installPath
@@ -233,14 +219,14 @@ export function StepConfigure({ state, setState, setError, onNext, onBack }: Pro
               {running ? (
                 <>
                   <span className="spinner" />
-                  Starting onboarding…
+                  Saving…
                 </>
               ) : (
-                "Run Onboarding"
+                "Save openclaw.json"
               )}
             </button>
           ) : (
-            <p className="loading">Onboarding has been triggered.</p>
+            <p className="loading">Config saved to openclaw.json.</p>
           )}
         </div>
       </div>
