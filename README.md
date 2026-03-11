@@ -1,0 +1,2 @@
+# desktop
+openclaw desktop
