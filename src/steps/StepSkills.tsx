@@ -17,7 +17,10 @@ export function StepSkills({ state, setState, setError, onNext, onBack }: Props)
     setError(null);
     setInstalling(true);
     try {
-      await invoke("install_skills_tools", { installDir: state.installPath });
+      await invoke("install_skills_tools", {
+        installDir: state.installPath,
+        downloadedPath: state.downloadPath?.trim() || null,
+      });
       setState({ skillsInstalled: true });
     } catch (e) {
       setError(String(e));

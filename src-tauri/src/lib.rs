@@ -31,6 +31,8 @@ pub fn run() {
             commands::install_openclaw,
             commands::get_install_path,
             commands::run_gateway,
+            commands::get_onboard_help,
+            commands::run_onboard,
             commands::install_skills_tools,
             commands::open_url,
         ])

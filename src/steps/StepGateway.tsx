@@ -17,7 +17,10 @@ export function StepGateway({ state, setState, setError, onNext, onBack }: Props
     setError(null);
     setStarting(true);
     try {
-      await invoke("run_gateway", { installDir: state.installPath });
+      await invoke("run_gateway", {
+        installDir: state.installPath,
+        downloadedPath: state.downloadPath?.trim() || null,
+      });
       setState({ gatewayRunning: true });
     } catch (e) {
       setError(String(e));

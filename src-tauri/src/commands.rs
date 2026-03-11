@@ -318,11 +318,60 @@ fn find_openclaw_exe(base: &std::path::Path) -> Option<PathBuf> {
     None
 }
 
+fn collect_openclaw_like_exes(base: &std::path::Path, acc: &mut Vec<PathBuf>) {
+    if let Ok(entries) = std::fs::read_dir(base) {
+        for e in entries.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                collect_openclaw_like_exes(&p, acc);
+                continue;
+            }
+            let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            let lower = name.to_ascii_lowercase();
+            if lower.ends_with(".exe") && lower.starts_with("openclaw") {
+                acc.push(p);
+            }
+        }
+    }
+}
+
+fn resolve_openclaw_exe(
+    install_dir: &str,
+    downloaded_path: Option<&str>,
+) -> Result<PathBuf, String> {
+    if let Some(p) = downloaded_path.map(str::trim).filter(|s| !s.is_empty()) {
+        let pb = PathBuf::from(p);
+        let is_exe = pb
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.eq_ignore_ascii_case("exe"))
+            .unwrap_or(false);
+        if is_exe && pb.exists() {
+            return Ok(pb);
+        }
+    }
+
+    let base = PathBuf::from(install_dir);
+    if let Some(found) = find_openclaw_exe(&base) {
+        return Ok(found);
+    }
+
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    collect_openclaw_like_exes(&base, &mut candidates);
+    if candidates.is_empty() {
+        return Err("openclaw executable not found (checked downloaded path and install directory)".to_string());
+    }
+    candidates.sort_by(|a, b| a.to_string_lossy().cmp(&b.to_string_lossy()));
+    Ok(candidates[0].clone())
+}
+
 #[tauri::command]
-pub async fn run_gateway(_app: AppHandle, install_dir: String) -> Result<(), String> {
-    let base = PathBuf::from(&install_dir);
-    let exe_path = find_openclaw_exe(&base)
-        .ok_or_else(|| "openclaw.exe not found in install directory".to_string())?;
+pub async fn run_gateway(
+    _app: AppHandle,
+    install_dir: String,
+    downloaded_path: Option<String>,
+) -> Result<(), String> {
+    let exe_path = resolve_openclaw_exe(&install_dir, downloaded_path.as_deref())?;
     let cwd = exe_path
         .parent()
         .ok_or("Invalid exe path")?;
@@ -334,12 +383,70 @@ pub async fn run_gateway(_app: AppHandle, install_dir: String) -> Result<(), Str
     Ok(())
 }
 
+#[tauri::command]
+pub async fn get_onboard_help(
+    _app: AppHandle,
+    install_dir: String,
+    downloaded_path: Option<String>,
+) -> Result<String, String> {
+    let exe_path = resolve_openclaw_exe(&install_dir, downloaded_path.as_deref())?;
+    let cwd = exe_path.parent().ok_or("Invalid exe path")?;
+
+    let out = Command::new(&exe_path)
+        .args(["onboard", "--help"])
+        .current_dir(cwd)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    let mut s = String::new();
+    if !out.stdout.is_empty() {
+        s.push_str(&String::from_utf8_lossy(&out.stdout));
+    }
+    if !out.stderr.is_empty() {
+        if !s.is_empty() {
+            s.push('\n');
+        }
+        s.push_str(&String::from_utf8_lossy(&out.stderr));
+    }
+    if s.trim().is_empty() {
+        return Err("No help output from `openclaw onboard --help`".to_string());
+    }
+    Ok(s)
+}
+
+#[tauri::command]
+pub async fn run_onboard(
+    _app: AppHandle,
+    install_dir: String,
+    downloaded_path: Option<String>,
+    args: Vec<String>,
+) -> Result<(), String> {
+    let exe_path = resolve_openclaw_exe(&install_dir, downloaded_path.as_deref())?;
+    let cwd = exe_path.parent().ok_or("Invalid exe path")?;
+
+    let mut cmd = Command::new(&exe_path);
+    cmd.arg("onboard");
+    for a in args {
+        let trimmed = a.trim();
+        if !trimmed.is_empty() {
+            cmd.arg(trimmed);
+        }
+    }
+    cmd.current_dir(cwd)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
 /// Install skills and tools via openclaw CLI (e.g. openclaw skills install / openclaw tools install).
 #[tauri::command]
-pub async fn install_skills_tools(_app: AppHandle, install_dir: String) -> Result<(), String> {
-    let base = PathBuf::from(&install_dir);
-    let exe_path = find_openclaw_exe(&base)
-        .ok_or_else(|| "openclaw.exe not found in install directory".to_string())?;
+pub async fn install_skills_tools(
+    _app: AppHandle,
+    install_dir: String,
+    downloaded_path: Option<String>,
+) -> Result<(), String> {
+    let exe_path = resolve_openclaw_exe(&install_dir, downloaded_path.as_deref())?;
     let cwd = exe_path.parent().ok_or("Invalid exe path")?;
     // Run skills/tools install if the CLI supports it
     let _ = Command::new(&exe_path)
