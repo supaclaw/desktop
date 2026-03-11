@@ -8,8 +8,18 @@ use tokio::io::AsyncWriteExt;
 const GITHUB_API_RELEASES: &str = "https://api.github.com/repos/supaclaw/openclaw/releases";
 
 fn build_http_client(proxy_url: Option<&str>) -> Result<reqwest::Client, String> {
+    // Some corporate proxies (or MITM appliances) return incorrect `Content-Encoding`
+    // headers (commonly gzip), which causes reqwest to fail with "error decoding response body".
+    // For our use-cases (JSON + binary downloads), it's safe to force identity encoding.
+    let mut default_headers = reqwest::header::HeaderMap::new();
+    default_headers.insert(
+        reqwest::header::ACCEPT_ENCODING,
+        reqwest::header::HeaderValue::from_static("identity"),
+    );
+
     let mut builder = reqwest::Client::builder()
         .user_agent("OpenClaw-Desktop-Wizard/1.0")
+        .default_headers(default_headers)
         // Avoid indefinite hangs on connect / TLS handshake / stalled transfers.
         .connect_timeout(std::time::Duration::from_secs(20))
         .timeout(std::time::Duration::from_secs(10 * 60))
