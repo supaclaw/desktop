@@ -6,6 +6,18 @@ use tauri::{AppHandle, Emitter};
 
 const GITHUB_API_RELEASES: &str = "https://api.github.com/repos/supaclaw/openclaw/releases";
 
+fn build_http_client(proxy_url: Option<&str>) -> Result<reqwest::Client, String> {
+    let mut builder = reqwest::Client::builder().user_agent("OpenClaw-Desktop-Wizard/1.0");
+    if let Some(url) = proxy_url {
+        let url = url.trim();
+        if !url.is_empty() {
+            let proxy = reqwest::Proxy::all(url).map_err(|e| e.to_string())?;
+            builder = builder.proxy(proxy);
+        }
+    }
+    builder.build().map_err(|e| e.to_string())
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DownloadProgress {
     pub loaded: u64,
@@ -14,11 +26,8 @@ pub struct DownloadProgress {
 }
 
 #[tauri::command]
-pub async fn fetch_openclaw_releases() -> Result<Vec<GitHubRelease>, String> {
-    let client = reqwest::Client::builder()
-        .user_agent("OpenClaw-Desktop-Wizard/1.0")
-        .build()
-        .map_err(|e| e.to_string())?;
+pub async fn fetch_openclaw_releases(proxy_url: Option<String>) -> Result<Vec<GitHubRelease>, String> {
+    let client = build_http_client(proxy_url.as_deref())?;
 
     let resp = client
         .get(GITHUB_API_RELEASES)
@@ -39,8 +48,11 @@ pub async fn download_openclaw(
     app: AppHandle,
     version: String,
     asset_name: String,
+    proxy_url: Option<String>,
 ) -> Result<PathBuf, String> {
-    let releases = fetch_openclaw_releases().await?;
+    let client = build_http_client(proxy_url.as_deref())?;
+
+    let releases = fetch_openclaw_releases(proxy_url.clone()).await?;
     let release = releases
         .into_iter()
         .find(|r| r.tag_name == version)
@@ -53,10 +65,6 @@ pub async fn download_openclaw(
         .ok_or_else(|| format!("Asset {} not found", asset_name))?;
 
     let url = asset.browser_download_url;
-    let client = reqwest::Client::builder()
-        .user_agent("OpenClaw-Desktop-Wizard/1.0")
-        .build()
-        .map_err(|e| e.to_string())?;
 
     let resp = client
         .get(&url)

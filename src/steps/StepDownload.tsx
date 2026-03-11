@@ -22,6 +22,7 @@ export function StepDownload({ state, setState, setError, onNext, onBack }: Prop
       const path = await invoke<string>("download_openclaw", {
         version: state.selectedVersion,
         assetName: state.selectedAsset,
+        proxyUrl: state.httpsProxy?.trim() || null,
       });
       setState({ downloadPath: path });
       setProgress(100);
@@ -40,6 +41,11 @@ export function StepDownload({ state, setState, setError, onNext, onBack }: Prop
         Download <strong>{state.selectedAsset}</strong> from release{" "}
         <strong>{state.selectedVersion}</strong>.
       </p>
+      {state.httpsProxy?.trim() && (
+        <p className="field-hint">
+          Using proxy: <code>{state.httpsProxy.trim()}</code>
+        </p>
+      )}
       {state.downloadPath && (
         <p className="loading">
           Saved to: <code>{state.downloadPath}</code>

@@ -149,6 +149,27 @@
   color: #0a58ca;
 }
 
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  margin-bottom: 0.25rem;
+}
+
+.field-hint {
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+  color: #6c757d;
+}
+
+.field-hint code {
+  font-size: 0.8125rem;
+  background: #e9ecef;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
 label {
   display: block;
   margin-bottom: 0.25rem;
