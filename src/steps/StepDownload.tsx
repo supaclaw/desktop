@@ -16,6 +16,7 @@ export function StepDownload({ state, setState, setError, onNext, onBack }: Prop
   const [progress, setProgress] = useState(0);
   const [logs, setLogs] = useState<string[]>([]);
   const lastPctRef = useRef(0);
+  const usingCustomUrl = state.downloadUrl.trim().length > 0;
 
   useEffect(() => {
     if (!downloading) return;
@@ -60,6 +61,9 @@ export function StepDownload({ state, setState, setError, onNext, onBack }: Prop
         version: state.selectedVersion,
         assetName: state.selectedAsset,
         proxyUrl: state.httpsProxy?.trim() || null,
+        downloadUrl: state.downloadUrl?.trim() || null,
+        username: state.downloadUsername?.trim() || null,
+        password: state.downloadPassword || null,
       });
       setState({ downloadPath: path });
       onNext();
@@ -73,10 +77,16 @@ export function StepDownload({ state, setState, setError, onNext, onBack }: Prop
   return (
     <div className="step-card">
       <h2>Download OpenClaw</h2>
-      <p>
-        Download <strong>{state.selectedAsset}</strong> from release{" "}
-        <strong>{state.selectedVersion}</strong>.
-      </p>
+      {usingCustomUrl ? (
+        <p>
+          Download from <strong>custom URL</strong>: <code>{state.downloadUrl.trim()}</code>
+        </p>
+      ) : (
+        <p>
+          Download <strong>{state.selectedAsset}</strong> from release{" "}
+          <strong>{state.selectedVersion}</strong>.
+        </p>
+      )}
       {state.httpsProxy?.trim() && (
         <p className="field-hint">
           Using proxy: <code>{state.httpsProxy.trim()}</code>
@@ -118,7 +128,10 @@ export function StepDownload({ state, setState, setError, onNext, onBack }: Prop
             type="button"
             className="btn btn-primary"
             onClick={handleDownload}
-            disabled={downloading}
+            disabled={
+              downloading ||
+              (usingCustomUrl ? !state.downloadUrl.trim() : !state.selectedVersion || !state.selectedAsset)
+            }
           >
             {downloading ? (
               <>

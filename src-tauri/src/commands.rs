@@ -69,39 +69,57 @@ pub async fn download_openclaw(
     version: String,
     asset_name: String,
     proxy_url: Option<String>,
+    download_url: Option<String>,
+    username: Option<String>,
+    password: Option<String>,
 ) -> Result<PathBuf, String> {
     let client = build_http_client(proxy_url.as_deref())?;
 
     emit_download_log(
         &app,
         format!(
-            "Starting download. version={} asset={} proxy={}",
+            "Starting download. version={} asset={} proxy={} custom_url={}",
             version,
             asset_name,
-            proxy_url.as_deref().unwrap_or("<none>")
+            proxy_url.as_deref().unwrap_or("<none>"),
+            download_url.as_deref().unwrap_or("<none>")
         ),
     );
 
-    let releases = fetch_openclaw_releases(proxy_url.clone()).await?;
-    let release = releases
-        .into_iter()
-        .find(|r| r.tag_name == version)
-        .ok_or_else(|| format!("Release {} not found", version))?;
+    let (url, file_name) = if let Some(u) = download_url.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        let parsed = reqwest::Url::parse(u).map_err(|e| format!("Invalid download URL: {}", e))?;
+        let fname = parsed
+            .path_segments()
+            .and_then(|mut segs| segs.next_back())
+            .filter(|s| !s.is_empty())
+            .unwrap_or("openclaw-download.bin")
+            .to_string();
+        (u.to_string(), fname)
+    } else {
+        let releases = fetch_openclaw_releases(proxy_url.clone()).await?;
+        let release = releases
+            .into_iter()
+            .find(|r| r.tag_name == version)
+            .ok_or_else(|| format!("Release {} not found", version))?;
 
-    let asset = release
-        .assets
-        .into_iter()
-        .find(|a| a.name == asset_name)
-        .ok_or_else(|| format!("Asset {} not found", asset_name))?;
+        let asset = release
+            .assets
+            .into_iter()
+            .find(|a| a.name == asset_name)
+            .ok_or_else(|| format!("Asset {} not found", asset_name))?;
 
-    let url = asset.browser_download_url;
-    emit_download_log(&app, format!("Requesting asset URL: {}", url));
+        (asset.browser_download_url, asset.name)
+    };
 
-    let resp = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
+    emit_download_log(&app, format!("Requesting URL: {}", url));
+
+    let mut req = client.get(&url);
+    let user = username.as_deref().map(str::trim).unwrap_or("");
+    if !user.is_empty() {
+        req = req.basic_auth(user.to_string(), password.clone());
+        emit_download_log(&app, format!("Using HTTP Basic Auth (username={})", user));
+    }
+    let resp = req.send().await.map_err(|e| e.to_string())?;
 
     if !resp.status().is_success() {
         return Err(format!("Download failed: {}", resp.status()));
@@ -117,7 +135,7 @@ pub async fn download_openclaw(
     );
 
     let download_dir = dirs::download_dir().ok_or("Could not find Downloads directory")?;
-    let file_path = download_dir.join(&asset_name);
+    let file_path = download_dir.join(&file_name);
 
     // Stream to disk and emit progress, instead of buffering the whole response in memory.
     let tmp_path = file_path.with_extension("part");

@@ -27,6 +27,12 @@ export interface WizardState {
   releases: GitHubRelease[];
   selectedVersion: string;
   selectedAsset: string;
+  /** Optional direct download URL (overrides GitHub release/asset selection) */
+  downloadUrl: string;
+  /** Optional basic auth username for `downloadUrl` */
+  downloadUsername: string;
+  /** Optional basic auth password for `downloadUrl` (kept in-memory by default) */
+  downloadPassword: string;
   downloadPath: string;
   installPath: string;
   gatewayRunning: boolean;
@@ -39,12 +45,18 @@ const defaultState: WizardState = {
   releases: [],
   selectedVersion: "",
   selectedAsset: "",
+  downloadUrl: "",
+  downloadUsername: "",
+  downloadPassword: "",
   downloadPath: "",
   installPath: "",
   gatewayRunning: false,
   skillsInstalled: false,
   httpsProxy: "",
 };
+
+const SETTINGS_STORAGE_KEY = "openclaw-desktop-wizard.settings.v1";
+type PersistedSettings = Pick<WizardState, "httpsProxy" | "downloadUrl" | "downloadUsername">;
 
 function App() {
   const [stepIndex, setStepIndex] = useState(0);
@@ -56,6 +68,38 @@ function App() {
   const setStatePartial = useCallback((patch: Partial<WizardState>) => {
     setState((s) => ({ ...s, ...patch }));
   }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<PersistedSettings>;
+      setState((s) => ({
+        ...s,
+        httpsProxy: typeof parsed.httpsProxy === "string" ? parsed.httpsProxy : s.httpsProxy,
+        downloadUrl: typeof parsed.downloadUrl === "string" ? parsed.downloadUrl : s.downloadUrl,
+        downloadUsername:
+          typeof parsed.downloadUsername === "string"
+            ? parsed.downloadUsername
+            : s.downloadUsername,
+      }));
+    } catch {
+      // ignore malformed storage
+    }
+  }, []);
+
+  useEffect(() => {
+    const payload: PersistedSettings = {
+      httpsProxy: state.httpsProxy,
+      downloadUrl: state.downloadUrl,
+      downloadUsername: state.downloadUsername,
+    };
+    try {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+      // ignore storage failures (e.g. disabled)
+    }
+  }, [state.httpsProxy, state.downloadUrl, state.downloadUsername]);
 
   useEffect(() => {
     const unlisten = listen<{ loaded: number; total?: number; done: boolean }>(

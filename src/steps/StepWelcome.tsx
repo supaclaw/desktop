@@ -40,6 +40,17 @@ function loadReleases(
     .catch((e) => setError(String(e)));
 }
 
+function isValidHttpUrl(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  try {
+    const u = new URL(trimmed);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export function StepWelcome({ state, setState, setError, onNext }: Props) {
   useEffect(() => {
     let cancelled = false;
@@ -74,6 +85,12 @@ export function StepWelcome({ state, setState, setError, onNext }: Props) {
     [state.httpsProxy, setState, setError]
   );
 
+  const usingCustomUrl = state.downloadUrl.trim().length > 0;
+  const customUrlValid = !usingCustomUrl || isValidHttpUrl(state.downloadUrl);
+  const canProceed = usingCustomUrl
+    ? customUrlValid
+    : Boolean(state.selectedVersion && state.selectedAsset);
+
   return (
     <div className="step-card">
       <h2>Welcome to OpenClaw Desktop</h2>
@@ -101,6 +118,60 @@ export function StepWelcome({ state, setState, setError, onNext }: Props) {
           Set this if downloads hang behind a corporate proxy.
         </p>
       </div>
+
+      <div className="form-group">
+        <label htmlFor="download-url">Download URL (optional)</label>
+        <input
+          id="download-url"
+          type="text"
+          placeholder="e.g. https://downloads.example.com/openclaw/openclaw-windows-x64.zip"
+          value={state.downloadUrl}
+          onChange={(e) => {
+            const next = e.target.value;
+            setState({
+              downloadUrl: next,
+              ...(next.trim() ? { selectedVersion: "", selectedAsset: "" } : {}),
+            });
+          }}
+        />
+        <p className="field-hint">
+          If set, the wizard will download directly from this URL (instead of GitHub releases).
+        </p>
+        {usingCustomUrl && !customUrlValid && (
+          <p className="field-hint" style={{ color: "#b00020" }}>
+            Please enter a valid http(s) URL.
+          </p>
+        )}
+      </div>
+
+      {usingCustomUrl && (
+        <>
+          <div className="form-group">
+            <label htmlFor="download-username">Username (optional)</label>
+            <input
+              id="download-username"
+              type="text"
+              autoComplete="username"
+              value={state.downloadUsername}
+              onChange={(e) => setState({ downloadUsername: e.target.value })}
+              placeholder="e.g. your.name"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="download-password">Password (optional)</label>
+            <input
+              id="download-password"
+              type="password"
+              autoComplete="current-password"
+              value={state.downloadPassword}
+              onChange={(e) => setState({ downloadPassword: e.target.value })}
+              placeholder="••••••••"
+            />
+            <p className="field-hint">Used for HTTP Basic Auth if a username is provided.</p>
+          </div>
+        </>
+      )}
+
       {(state.httpsProxy || state.releases.length === 0) && (
         <button
           type="button"
@@ -111,13 +182,13 @@ export function StepWelcome({ state, setState, setError, onNext }: Props) {
           {state.releases.length === 0 ? "Load releases" : "Reload releases"}
         </button>
       )}
-      {state.releases.length === 0 && !state.selectedVersion && (
+      {state.releases.length === 0 && !state.selectedVersion && !usingCustomUrl && (
         <p className="loading">
           <span className="spinner" />
           Loading releases…
         </p>
       )}
-      {state.releases.length > 0 && (
+      {!usingCustomUrl && state.releases.length > 0 && (
         <>
           <label>OpenClaw version</label>
           <select
@@ -165,7 +236,7 @@ export function StepWelcome({ state, setState, setError, onNext }: Props) {
           type="button"
           className="btn btn-primary"
           onClick={onNext}
-          disabled={!state.selectedVersion || !state.selectedAsset}
+          disabled={!canProceed}
         >
           Next: Download
         </button>
