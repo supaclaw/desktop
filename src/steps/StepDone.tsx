@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import confetti from "canvas-confetti";
 import type { WizardState } from "../App";
 
 interface Props {
@@ -7,6 +9,27 @@ interface Props {
 }
 
 export function StepDone({ state, onBack }: Props) {
+  useEffect(() => {
+    // Fire a quick celebratory burst when the final step is shown
+    const duration = 2_000;
+    const end = Date.now() + duration;
+
+    const frame = () => {
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.4 },
+        disableForReducedMotion: true,
+      });
+
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    };
+
+    frame();
+  }, []);
+
   const openReleases = () => {
     invoke("open_url", {
       url: "https://github.com/supaclaw/openclaw/releases",
