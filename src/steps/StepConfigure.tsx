@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { WizardState } from "../App";
 
@@ -78,8 +78,24 @@ export function StepConfigure({ state, setState, setError, onNext, onBack }: Pro
   const [selectedFlags, setSelectedFlags] = useState<Record<string, boolean>>({});
   const [extraArgs, setExtraArgs] = useState("");
   const [running, setRunning] = useState(false);
+  const defaultsAppliedRef = useRef(false);
 
   const flags = useMemo(() => parseOnboardFlags(helpText), [helpText]);
+
+  useEffect(() => {
+    if (defaultsAppliedRef.current) return;
+    if (flags.length === 0) return;
+    defaultsAppliedRef.current = true;
+    setSelectedFlags((prev) => {
+      // Don't override any existing user selection (if present)
+      const next: Record<string, boolean> = { ...prev };
+      for (const f of flags) {
+        if (typeof next[f.flag] === "boolean") continue;
+        if (f.flag.startsWith("--skip")) next[f.flag] = true;
+      }
+      return next;
+    });
+  }, [flags]);
 
   useEffect(() => {
     let cancelled = false;
@@ -192,6 +208,7 @@ export function StepConfigure({ state, setState, setError, onNext, onBack }: Pro
             type="button"
             className="btn btn-secondary"
             onClick={() => {
+              defaultsAppliedRef.current = false;
               setSelectedFlags({});
               setExtraArgs("");
             }}
@@ -204,8 +221,14 @@ export function StepConfigure({ state, setState, setError, onNext, onBack }: Pro
               type="button"
               className="btn btn-primary"
               onClick={handleRunOnboard}
-              disabled={running || !state.installPath}
-              title={!state.installPath ? "Install OpenClaw first" : undefined}
+              disabled={running || loadingHelp || !state.installPath}
+              title={
+                !state.installPath
+                  ? "Install OpenClaw first"
+                  : loadingHelp
+                    ? "Loading onboarding options…"
+                    : undefined
+              }
             >
               {running ? (
                 <>
