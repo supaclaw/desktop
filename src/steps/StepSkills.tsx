@@ -1,5 +1,3 @@
-import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import type { WizardState } from "../App";
 
 interface Props {
@@ -11,31 +9,13 @@ interface Props {
 }
 
 export function StepSkills({ state, setState, setError, onNext, onBack }: Props) {
-  const [installing, setInstalling] = useState(false);
-
-  const handleInstall = async () => {
-    setError(null);
-    setInstalling(true);
-    try {
-      await invoke("install_skills_tools", {
-        installDir: state.installPath,
-        downloadedPath: state.downloadPath?.trim() || null,
-      });
-      setState({ skillsInstalled: true });
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setInstalling(false);
-    }
-  };
-
   return (
     <div className="step-card">
-      <h2>Install Skills & Tools</h2>
+      <h2>Install Skills & Tools (Coming soon)</h2>
       <p>
-        Install OpenClaw skills and tools so agents can use them. This runs{" "}
-        <code>openclaw skills install</code> and <code>openclaw tools install</code>{" "}
-        if supported by your OpenClaw version.
+        Installing OpenClaw skills and tools from the desktop wizard is not available yet.
+        This step will let you run <code>openclaw skills install</code> and{" "}
+        <code>openclaw tools install</code> from here in a future release.
       </p>
       {state.skillsInstalled && (
         <p className="loading">Skills and tools install has been triggered.</p>
@@ -47,27 +27,9 @@ export function StepSkills({ state, setState, setError, onNext, onBack }: Props)
         <button type="button" className="btn btn-link" onClick={onNext}>
           Skip
         </button>
-        {!state.skillsInstalled ? (
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={handleInstall}
-            disabled={installing}
-          >
-            {installing ? (
-              <>
-                <span className="spinner" />
-                Installing…
-              </>
-            ) : (
-              "Install Skills & Tools"
-            )}
-          </button>
-        ) : (
-          <button type="button" className="btn btn-primary" onClick={onNext}>
-            Finish
-          </button>
-        )}
+        <button type="button" className="btn btn-primary" disabled>
+          Coming soon
+        </button>
       </div>
     </div>
   );
