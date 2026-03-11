@@ -8,6 +8,6 @@
     "http:default",
     "dialog:default",
     "fs:default",
-    "process:allow-spawn"
+    "shell:allow-spawn"
   ]
 }

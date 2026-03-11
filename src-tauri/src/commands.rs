@@ -1,11 +1,12 @@
 use crate::GitHubRelease;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use tauri::AppHandle;
+use std::process::Command;
+use tauri::{AppHandle, Emitter};
 
 const GITHUB_API_RELEASES: &str = "https://api.github.com/repos/supaclaw/openclaw/releases";
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DownloadProgress {
     pub loaded: u64,
     pub total: Option<u64>,
@@ -170,7 +171,7 @@ pub async fn run_gateway(_app: AppHandle, install_dir: String) -> Result<(), Str
     let cwd = exe_path
         .parent()
         .ok_or("Invalid exe path")?;
-    tauri_plugin_shell::process::Command::new(&exe_path)
+    Command::new(&exe_path)
         .args(["gateway"])
         .current_dir(cwd)
         .spawn()
@@ -186,11 +187,11 @@ pub async fn install_skills_tools(_app: AppHandle, install_dir: String) -> Resul
         .ok_or_else(|| "openclaw.exe not found in install directory".to_string())?;
     let cwd = exe_path.parent().ok_or("Invalid exe path")?;
     // Run skills/tools install if the CLI supports it
-    let _ = tauri_plugin_shell::process::Command::new(&exe_path)
+    let _ = Command::new(&exe_path)
         .args(["skills", "install"])
         .current_dir(cwd)
         .spawn();
-    let _ = tauri_plugin_shell::process::Command::new(&exe_path)
+    let _ = Command::new(&exe_path)
         .args(["tools", "install"])
         .current_dir(cwd)
         .spawn();

@@ -28,7 +28,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "icon": [],
+    "icon": ["icons/icon.ico"],
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
@@ -38,7 +38,6 @@
     "shortDescription": "OpenClaw desktop setup wizard",
     "category": "DeveloperTool",
     "copyright": "Copyright © 2026 supaclaw",
-    "kind": ["msi", "nsis"],
     "resources": []
   },
   "plugins": {
