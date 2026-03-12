@@ -12,6 +12,8 @@ import { StepDone } from "./steps/StepDone";
 import { LANGUAGE_LABELS, STEP_TITLES, TEXT, type Language } from "./i18n";
 import "./App.css";
 
+const PROJECT_GITHUB_URL = "https://github.com/supaclaw/desktop";
+
 const STEPS = [
   { id: "welcome" },
   { id: "download" },
@@ -139,6 +141,13 @@ function App() {
     if (idx >= 0) setStepIndex(idx);
   }, []);
 
+  const openProjectGitHub = useCallback(() => {
+    invoke("open_url", { url: PROJECT_GITHUB_URL }).catch(() => {
+      // Fallback for non-Tauri contexts (e.g. browser preview)
+      window.open(PROJECT_GITHUB_URL, "_blank", "noreferrer");
+    });
+  }, []);
+
   return (
     <div className="app">
       <header className="app-header">
@@ -150,14 +159,33 @@ function App() {
             {buildInfo.commit_date ? ` · ${buildInfo.commit_date}` : ""}
           </div>
         )}
-        <button
-          type="button"
-          className="language-toggle"
-          onClick={() => setLanguage((prev) => (prev === "en" ? "zh" : "en"))}
-          aria-label={language === "en" ? "Switch to Chinese" : "切换到英文"}
-        >
-          {language === "en" ? "EN" : "中文"}
-        </button>
+        <div className="header-actions" aria-label="Header actions">
+          <button
+            type="button"
+            className="icon-button"
+            onClick={openProjectGitHub}
+            aria-label={language === "zh" ? "打开项目 GitHub" : "Open project on GitHub"}
+            title={language === "zh" ? "GitHub：supaclaw/desktop" : "GitHub: supaclaw/desktop"}
+          >
+            <svg
+              className="icon"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M12 2C6.48 2 2 6.58 2 12.26c0 4.54 2.87 8.38 6.84 9.74.5.1.68-.22.68-.48 0-.24-.01-.87-.01-1.7-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.49-1.11-1.49-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.9 1.58 2.36 1.12 2.94.86.09-.67.35-1.12.63-1.38-2.22-.26-4.56-1.14-4.56-5.08 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05.8-.23 1.66-.34 2.51-.34.85 0 1.71.12 2.51.34 1.9-1.33 2.74-1.05 2.74-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.95-2.34 4.82-4.57 5.08.36.32.68.96.68 1.94 0 1.4-.01 2.52-.01 2.86 0 .26.18.58.69.48A10.05 10.05 0 0 0 22 12.26C22 6.58 17.52 2 12 2z" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            className="language-toggle"
+            onClick={() => setLanguage((prev) => (prev === "en" ? "zh" : "en"))}
+            aria-label={language === "en" ? "Switch to Chinese" : "切换到英文"}
+          >
+            {language === "en" ? "EN" : "中文"}
+          </button>
+        </div>
         <nav className="step-nav">
           {STEPS.map((s, i) => (
             <button
