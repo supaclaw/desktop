@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { GitHubRelease } from "./types";
+import type { BuildInfo, GitHubRelease } from "./types";
 import { StepWelcome } from "./steps/StepWelcome";
 import { StepDownload } from "./steps/StepDownload";
 import { StepInstall } from "./steps/StepInstall";
@@ -66,6 +66,7 @@ function App() {
   const [state, setState] = useState<WizardState>(defaultState);
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState<Language>("zh");
+  const [buildInfo, setBuildInfo] = useState<BuildInfo | null>(null);
 
   const stepId = STEPS[stepIndex].id;
 
@@ -117,6 +118,12 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    invoke<BuildInfo>("get_build_info")
+      .then((info) => setBuildInfo(info))
+      .catch(() => setBuildInfo(null));
+  }, []);
+
   const goNext = useCallback(() => {
     setError(null);
     if (stepIndex < STEPS.length - 1) setStepIndex((i) => i + 1);
@@ -136,6 +143,13 @@ function App() {
     <div className="app">
       <header className="app-header">
         <h1>{TEXT.appTitle[language]}</h1>
+        {buildInfo && (
+          <div className="build-info" aria-label="Build information">
+            v{buildInfo.version} · {buildInfo.commit}
+            {buildInfo.dirty ? "*" : ""}
+            {buildInfo.commit_date ? ` · ${buildInfo.commit_date}` : ""}
+          </div>
+        )}
         <button
           type="button"
           className="language-toggle"

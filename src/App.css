@@ -23,6 +23,16 @@
   letter-spacing: -0.02em;
 }
 
+.build-info {
+  margin-top: -0.6rem;
+  margin-bottom: 0.9rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  user-select: text;
+  overflow-wrap: anywhere;
+}
+
 .language-toggle {
   position: absolute;
   top: 1.25rem;

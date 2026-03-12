@@ -526,3 +526,30 @@ pub async fn read_openclaw_config() -> Result<String, String> {
 pub async fn open_url(url: String) -> Result<(), String> {
     open::that(&url).map_err(|e| e.to_string())
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BuildInfo {
+    pub version: String,
+    pub commit: String,
+    pub dirty: bool,
+    pub commit_date: Option<String>,
+}
+
+#[tauri::command]
+pub async fn get_build_info() -> Result<BuildInfo, String> {
+    let version = env!("CARGO_PKG_VERSION").to_string();
+    let commit = option_env!("GIT_COMMIT_HASH")
+        .unwrap_or("unknown")
+        .to_string();
+    let dirty = option_env!("GIT_DIRTY")
+        .and_then(|s| s.parse::<bool>().ok())
+        .unwrap_or(false);
+    let commit_date = option_env!("GIT_COMMIT_DATE").map(|s| s.to_string());
+
+    Ok(BuildInfo {
+        version,
+        commit,
+        dirty,
+        commit_date,
+    })
+}

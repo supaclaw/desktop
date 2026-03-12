@@ -37,6 +37,7 @@ pub fn run() {
             commands::write_openclaw_config,
             commands::read_openclaw_config,
             commands::open_url,
+            commands::get_build_info,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

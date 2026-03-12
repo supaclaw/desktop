@@ -10,3 +10,10 @@ export interface GitHubRelease {
   body: string | null;
   assets: ReleaseAsset[];
 }
+
+export interface BuildInfo {
+  version: string;
+  commit: string;
+  dirty: boolean;
+  commit_date: string | null;
+}
