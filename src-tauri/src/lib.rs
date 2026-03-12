@@ -40,6 +40,7 @@ pub fn run() {
             commands::open_url,
             commands::wait_for_local_port,
             commands::get_build_info,
+            commands::clean_openclaw_temp,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

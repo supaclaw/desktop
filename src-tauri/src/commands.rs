@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::{Duration, Instant};
+use std::fs;
 use sysinfo::System;
 use tauri::{AppHandle, Emitter};
 use tokio::io::AsyncWriteExt;
@@ -582,6 +583,100 @@ pub async fn wait_for_local_port(port: u16, timeout_ms: Option<u64>) -> Result<(
             .map(|e| format!(" (last error: {})", e))
             .unwrap_or_default()
     ))
+}
+
+fn delete_openclaw_temp_entries(root: &std::path::Path, removed: &mut u32, had_error: &mut Option<String>) {
+    let is_caxa_root = root
+        .file_name()
+        .and_then(|n| n.to_str())
+        .map(|n| n.eq_ignore_ascii_case("caxa"))
+        .unwrap_or(false);
+
+    if let Ok(entries) = fs::read_dir(root) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let name = match path.file_name().and_then(|n| n.to_str()) {
+                Some(n) => n.to_ascii_lowercase(),
+                None => continue,
+            };
+
+            let is_openclaw = name.contains("openclaw");
+
+            // Under a caxa root, treat everything as OpenClaw-related temp.
+            let should_delete = is_openclaw || is_caxa_root;
+
+            if should_delete {
+                let res = if path.is_dir() {
+                    fs::remove_dir_all(&path)
+                } else {
+                    fs::remove_file(&path)
+                };
+
+                match res {
+                    Ok(_) => {
+                        *removed = removed.saturating_add(1);
+                    }
+                    Err(e) => {
+                        *had_error = Some(e.to_string());
+                    }
+                }
+
+                // If we just deleted a directory, don't recurse into it.
+                if path.is_dir() {
+                    continue;
+                }
+            }
+
+            if path.is_dir() {
+                delete_openclaw_temp_entries(&path, removed, had_error);
+            }
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn clean_openclaw_temp() -> Result<u32, String> {
+    let mut removed: u32 = 0;
+    let mut had_error: Option<String> = None;
+
+    // Prefer LOCALAPPDATA\Temp when available; fall back to system temp dir.
+    let temp_root = std::env::var_os("LOCALAPPDATA")
+        .map(PathBuf::from)
+        .map(|p| p.join("Temp"))
+        .filter(|p| p.is_dir())
+        .unwrap_or_else(|| std::env::temp_dir());
+
+    if !temp_root.is_dir() {
+        return Err(format!(
+            "Temp directory does not exist: {}",
+            temp_root.display()
+        ));
+    }
+
+    // Special-case: if a top-level `caxa` temp directory exists under LOCALAPPDATA\Temp,
+    // try to remove it entirely (this is where OpenClaw's packaged runtime tends to live).
+    let caxa_root = temp_root.join("caxa");
+    if caxa_root.is_dir() {
+        match fs::remove_dir_all(&caxa_root) {
+            Ok(_) => {
+                removed = removed.saturating_add(1);
+            }
+            Err(e) => {
+                // Best-effort only; remember last error but do not fail the whole command.
+                had_error = Some(e.to_string());
+            }
+        }
+    }
+
+    // Also recursively clean any other OpenClaw-related temp artifacts.
+    delete_openclaw_temp_entries(&temp_root, &mut removed, &mut had_error);
+
+    // We intentionally do not bubble up partial failures (e.g. access denied on files
+    // that are still in use). The UI can rely on the returned count and the user can
+    // close running OpenClaw processes if they want a more thorough cleanup.
+    let _ = had_error;
+
+    Ok(removed)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

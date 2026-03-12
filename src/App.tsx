@@ -141,6 +141,29 @@ function App() {
     if (idx >= 0) setStepIndex(idx);
   }, []);
 
+  const handleCleanTemp = useCallback(() => {
+    setError(null);
+    invoke<number>("clean_openclaw_temp")
+      .then((count) => {
+        const msgZh =
+          count > 0
+            ? `已清理 ${count} 个 OpenClaw 临时项。`
+            : "没有找到可清理的 OpenClaw 临时数据。";
+        const msgEn =
+          count > 0
+            ? `Cleaned ${count} OpenClaw temp item${count === 1 ? "" : "s"}.`
+            : "No OpenClaw temp data found to clean.";
+        window.alert(language === "zh" ? msgZh : msgEn);
+      })
+      .catch((e) => {
+        const msg =
+          language === "zh"
+            ? `清理 OpenClaw 临时数据失败：${String(e)}`
+            : `Failed to clean OpenClaw temp data: ${String(e)}`;
+        setError(msg);
+      });
+  }, [language]);
+
   const openProjectGitHub = useCallback(() => {
     invoke("open_url", { url: PROJECT_GITHUB_URL }).catch(() => {
       // Fallback for non-Tauri contexts (e.g. browser preview)
@@ -160,6 +183,20 @@ function App() {
           </div>
         )}
         <div className="header-actions" aria-label="Header actions">
+          <button
+            type="button"
+            className="icon-button"
+            onClick={handleCleanTemp}
+            aria-label={language === "zh" ? "清理 OpenClaw 临时数据" : "Clean OpenClaw temp data"}
+            title={
+              language === "zh"
+                ? "从本机临时目录中删除 OpenClaw 相关缓存（例如 C:\\Users\\<你>\\AppData\\Local\\Temp）"
+                : "Delete OpenClaw-related cache from local temp directories (e.g. C:\\Users\\<you>\\AppData\\Local\\Temp)"
+            }
+          >
+            <span className="icon">🧹</span>
+          </button>
+
           <button
             type="button"
             className="icon-button"
