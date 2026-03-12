@@ -170,7 +170,7 @@ export function StepWelcome({ language, state, setState, setError, onNext }: Pro
             : "If set, the wizard will download directly from this URL (instead of GitHub releases)."}
         </p>
         {usingCustomUrl && !customUrlValid && (
-          <p className="field-hint" style={{ color: "#b00020" }}>
+          <p className="field-hint field-error">
             {language === "zh" ? "请输入有效的 http(s) URL。" : "Please enter a valid http(s) URL."}
           </p>
         )}
@@ -215,9 +215,8 @@ export function StepWelcome({ language, state, setState, setError, onNext }: Pro
       {(state.httpsProxy || state.releases.length === 0) && (
         <button
           type="button"
-          className="btn btn-secondary"
+          className="btn btn-secondary mb-1"
           onClick={loadReleasesCb}
-          style={{ marginBottom: "1rem" }}
         >
           {state.releases.length === 0
             ? language === "zh"

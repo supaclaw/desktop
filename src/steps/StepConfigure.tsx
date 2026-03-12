@@ -80,8 +80,8 @@ export function StepConfigure({ language, state, setState, setError, onNext, onB
         </>
       )}
 
-      <div style={{ marginTop: 16 }}>
-        <h3 style={{ margin: "12px 0 8px" }}>
+      <div className="step-section">
+        <h3>
           {language === "zh" ? "非交互式引导" : "Non-interactive onboarding"}
         </h3>
         {language === "zh" ? (
@@ -101,7 +101,7 @@ export function StepConfigure({ language, state, setState, setError, onNext, onB
           </p>
         )}
 
-        <div className="step-actions" style={{ marginTop: 12 }}>
+        <div className="step-actions">
           {!state.configSaved ? (
             <button
               type="button"
@@ -132,8 +132,8 @@ export function StepConfigure({ language, state, setState, setError, onNext, onB
       </div>
 
       {state.configSaved && (
-        <div style={{ marginTop: 24 }}>
-          <h3 style={{ margin: "12px 0 8px" }}>
+        <div className="step-section">
+          <h3>
             {language === "zh" ? "编辑 openclaw.json" : "Edit openclaw.json"}
           </h3>
           {language === "zh" ? (
@@ -147,6 +147,7 @@ export function StepConfigure({ language, state, setState, setError, onNext, onB
             </p>
           )}
           <textarea
+            className="config-textarea"
             value={configText}
             onChange={(e) => {
               setConfigText(e.target.value);
@@ -171,14 +172,13 @@ export function StepConfigure({ language, state, setState, setError, onNext, onB
               }
             }}
             spellCheck={false}
-            style={{ width: "100%", minHeight: 220, fontFamily: "monospace", fontSize: 12 }}
           />
           {configParseError && (
-            <p className="error-text" style={{ color: "#d33", marginTop: 6 }}>
+            <p className="error-text">
               {configParseError}
             </p>
           )}
-          <div className="step-actions" style={{ marginTop: 12 }}>
+          <div className="step-actions">
             <button
               type="button"
               className="btn btn-secondary"

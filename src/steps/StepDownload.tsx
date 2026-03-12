@@ -117,23 +117,9 @@ export function StepDownload({ language, state, setState, setError, onNext, onBa
         <div className="progress-bar">
           <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
         </div>
-        <pre
-          style={{
-            display: logs.length > 0 ? "block" : "none",
-            maxHeight: "10rem",
-            overflow: "auto",
-            background: "#f8f9fa",
-            border: "1px solid #dee2e6",
-            borderRadius: "6px",
-            padding: "0.75rem",
-            margin: "0 0 1rem 0",
-            color: "#212529",
-            fontSize: "0.8125rem",
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          {logs.join("\n")}
-        </pre>
+        {logs.length > 0 && (
+          <pre className="download-log">{logs.join("\n")}</pre>
+        )}
       </div>
       <div className="step-actions">
         <button type="button" className="btn btn-secondary" onClick={onBack}>
