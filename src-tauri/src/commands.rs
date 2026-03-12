@@ -2,6 +2,8 @@ use crate::GitHubRelease;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::process::Command;
+use std::time::{Duration, Instant};
+use sysinfo::System;
 use tauri::{AppHandle, Emitter};
 use tokio::io::AsyncWriteExt;
 use serde_json::Value as JsonValue;
@@ -385,6 +387,30 @@ pub async fn run_gateway(
 }
 
 #[tauri::command]
+pub async fn stop_all_gateways() -> Result<u32, String> {
+    let mut sys = System::new_all();
+    sys.refresh_processes();
+
+    let mut killed: u32 = 0;
+    for (_pid, proc_) in sys.processes() {
+        let name = proc_.name().to_ascii_lowercase();
+        if !name.contains("openclaw") || name.contains("desktop") {
+            continue;
+        }
+        let cmd = proc_.cmd();
+        let is_gateway = cmd.iter().any(|a| a.eq_ignore_ascii_case("gateway"));
+        if !is_gateway {
+            continue;
+        }
+        if proc_.kill() {
+            killed = killed.saturating_add(1);
+        }
+    }
+
+    Ok(killed)
+}
+
+#[tauri::command]
 pub async fn get_onboard_help(
     _app: AppHandle,
     install_dir: String,
@@ -525,6 +551,37 @@ pub async fn read_openclaw_config() -> Result<String, String> {
 #[tauri::command]
 pub async fn open_url(url: String) -> Result<(), String> {
     open::that(&url).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn wait_for_local_port(port: u16, timeout_ms: Option<u64>) -> Result<(), String> {
+    let timeout = Duration::from_millis(timeout_ms.unwrap_or(30_000));
+    let deadline = Instant::now() + timeout;
+    let addr = format!("127.0.0.1:{}", port);
+
+    let mut last_err: Option<String> = None;
+    while Instant::now() < deadline {
+        match tokio::net::TcpStream::connect(&addr).await {
+            Ok(stream) => {
+                drop(stream);
+                return Ok(());
+            }
+            Err(e) => {
+                last_err = Some(e.to_string());
+                tokio::time::sleep(Duration::from_millis(150)).await;
+            }
+        }
+    }
+
+    Err(format!(
+        "Gateway did not start listening on {} within {}ms{}",
+        addr,
+        timeout.as_millis(),
+        last_err
+            .as_deref()
+            .map(|e| format!(" (last error: {})", e))
+            .unwrap_or_default()
+    ))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

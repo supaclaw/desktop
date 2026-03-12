@@ -31,12 +31,14 @@ pub fn run() {
             commands::install_openclaw,
             commands::get_install_path,
             commands::run_gateway,
+            commands::stop_all_gateways,
             commands::get_onboard_help,
             commands::run_onboard,
             commands::install_skills_tools,
             commands::write_openclaw_config,
             commands::read_openclaw_config,
             commands::open_url,
+            commands::wait_for_local_port,
             commands::get_build_info,
         ])
         .run(tauri::generate_context!())

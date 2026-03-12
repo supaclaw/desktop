@@ -19,11 +19,41 @@ export function StepGateway({ language, state, setState, setError, onNext, onBac
     setError(null);
     setStarting(true);
     try {
+      await invoke("stop_all_gateways");
       await invoke("run_gateway", {
         installDir: state.installPath,
         downloadedPath: state.downloadPath?.trim() || null,
       });
+
+      let port = 18789;
+      try {
+        const cfgText = (await invoke("read_openclaw_config")) as string;
+        const cfg = JSON.parse(cfgText) as unknown;
+        const rawPort = (cfg as any)?.gateway?.port;
+        const maybePort =
+          typeof rawPort === "number"
+            ? rawPort
+            : typeof rawPort === "string"
+              ? Number(rawPort)
+              : NaN;
+        if (Number.isFinite(maybePort) && maybePort > 0 && maybePort < 65536) {
+          port = maybePort;
+        }
+      } catch {
+        // ignore - fall back to default
+      }
+
+      // Don't open the Web UI until the gateway is actually listening.
+      await invoke("wait_for_local_port", { port, timeoutMs: 30_000 });
+
       setState({ gatewayRunning: true });
+
+      // Best-effort: opening the browser shouldn't fail the step once gateway is up.
+      try {
+        await invoke("open_url", { url: `http://127.0.0.1:${port}` });
+      } catch {
+        // ignore
+      }
     } catch (e) {
       setError(String(e));
     } finally {
