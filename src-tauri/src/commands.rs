@@ -540,6 +540,111 @@ pub async fn install_skills_tools(
     Ok(())
 }
 
+fn resolve_clawhub_command() -> Result<Command, String> {
+    // 1) Allow explicit override via env var.
+    if let Ok(path) = std::env::var("CLAWHUB_CLI_PATH") {
+        let trimmed = path.trim();
+        if !trimmed.is_empty() {
+            return Ok(Command::new(trimmed));
+        }
+    }
+
+    // 2) Try PATH first.
+    let base = Command::new("clawhub");
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::path::PathBuf;
+
+        // 3) npm global under %APPDATA%\npm\clawhub.cmd
+        if let Ok(appdata) = std::env::var("APPDATA") {
+            let mut p = PathBuf::from(&appdata);
+            p.push("npm");
+            p.push("clawhub.cmd");
+            if p.is_file() {
+                return Ok(Command::new(p));
+            }
+        }
+
+        // 4) npm global under %USERPROFILE%\AppData\Local\npm\clawhub.cmd
+        if let Ok(home) = std::env::var("USERPROFILE") {
+            let mut p = PathBuf::from(&home);
+            p.push("AppData");
+            p.push("Local");
+            p.push("npm");
+            p.push("clawhub.cmd");
+            if p.is_file() {
+                return Ok(Command::new(p));
+            }
+        }
+
+        // 5) pnpm global under %USERPROFILE%\AppData\Local\pnpm\clawhub.cmd
+        if let Ok(home) = std::env::var("USERPROFILE") {
+            let mut p = PathBuf::from(&home);
+            p.push("AppData");
+            p.push("Local");
+            p.push("pnpm");
+            p.push("clawhub.cmd");
+            if p.is_file() {
+                return Ok(Command::new(p));
+            }
+        }
+    }
+
+    // Fallback: just return the PATH-based command; the error will surface if it fails.
+    if base.get_program().to_string_lossy().is_empty() {
+        Err("clawhub CLI not found. Ensure it is installed (e.g. `npm i -g clawhub`) as described in https://docs.openclaw.ai/tools/clawhub, or set CLAWHUB_CLI_PATH to the full path of the executable.".to_string())
+    } else {
+        Ok(base)
+    }
+}
+
+/// Run `clawhub search` to search for skills and return the raw CLI output.
+#[tauri::command]
+pub async fn clawhub_search(query: String) -> Result<String, String> {
+    let trimmed = query.trim();
+    if trimmed.is_empty() {
+        return Err("Search query must not be empty".to_string());
+    }
+
+    // Run in the current working directory so ClawHub can resolve the OpenClaw workspace.
+    let cwd = std::env::current_dir().map_err(|e| e.to_string())?;
+
+    let mut cmd = resolve_clawhub_command()?;
+    cmd.arg("search").arg(trimmed).current_dir(cwd);
+
+    let output = cmd.output().map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        let code = output.status.code().unwrap_or(-1);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let mut msg = format!("clawhub search failed (exit code {code})");
+        if !stderr.trim().is_empty() {
+            msg.push_str(" - stderr: ");
+            msg.push_str(stderr.trim());
+        } else if !stdout.trim().is_empty() {
+            msg.push_str(" - stdout: ");
+            msg.push_str(stdout.trim());
+        }
+        return Err(msg);
+    }
+
+    let mut out = String::new();
+    if !output.stdout.is_empty() {
+        out.push_str(&String::from_utf8_lossy(&output.stdout));
+    }
+    if out.trim().is_empty() && !output.stderr.is_empty() {
+        out.push_str(&String::from_utf8_lossy(&output.stderr));
+    }
+
+    if out.trim().is_empty() {
+        Ok("No output from `clawhub search`.".to_string())
+    } else {
+        Ok(out)
+    }
+}
+
 #[tauri::command]
 pub async fn write_openclaw_config(
     _app: AppHandle,

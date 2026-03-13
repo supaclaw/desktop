@@ -8,7 +8,7 @@ A **Tauri 2** Windows desktop app that guides you through downloading, installin
 - **Install** – Extract or copy the build to a chosen directory (default: `%LOCALAPPDATA%\OpenClaw`).
 - **Configure** – Review install path and optional PATH setup.
 - **Run gateway** – Start the OpenClaw gateway from the install directory.
-- **Install Skills & Tools (Coming soon)** – Not yet available in the wizard.
+- **Install Skills & Tools** – Use the ClawHub CLI (`clawhub search`, see `https://docs.openclaw.ai/tools/clawhub`) from the wizard to search skills in your workspace and trigger `openclaw skills install` / `openclaw tools install` for the current OpenClaw workspace.
 
 ## Prerequisites
 
@@ -33,11 +33,6 @@ This starts the Vite dev server and opens the Tauri window.
 ```bash
 npm run tauri build
 ```
-
-Outputs:
-
-- **NSIS installer**: `src-tauri/target/release/bundle/nsis/OpenClaw Desktop Wizard_1.0.0_x64-setup.exe`
-- **MSI**: `src-tauri/target/release/bundle/msi/...`
 
 If you change the app icon or see a stale/gray icon in the EXE or taskbar, clean old Rust/Tauri binaries before rebuilding:
 
