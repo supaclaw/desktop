@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import type { WizardState } from "../App";
 import type { Language } from "../i18n";
 
@@ -62,16 +63,42 @@ export function StepInstall({ language, state, setState, setError, onNext, onBac
       <label>
         {language === "zh" ? "下载文件路径（.zip 或 .exe）" : "Downloaded file path (.zip or .exe)"}
       </label>
-      <input
-        type="text"
-        value={state.downloadPath}
-        onChange={(e) => setState({ downloadPath: e.target.value })}
-        placeholder={
-          language === "zh"
-            ? "例如：C:\\Users\\You\\Downloads\\openclaw-v1.5.0-windows-x64-portable.zip"
-            : "e.g. C:\\Users\\You\\Downloads\\openclaw-v1.5.0-windows-x64-portable.zip"
-        }
-      />
+      <div className="input-row">
+        <input
+          type="text"
+          value={state.downloadPath}
+          onChange={(e) => setState({ downloadPath: e.target.value })}
+          placeholder={
+            language === "zh"
+              ? "例如：C:\\Users\\You\\Downloads\\openclaw-v1.5.0-windows-x64-portable.zip"
+              : "e.g. C:\\Users\\You\\Downloads\\openclaw-v1.5.0-windows-x64-portable.zip"
+          }
+        />
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={async () => {
+            try {
+              const selected = await openDialog({
+                multiple: false,
+                filters: [
+                  {
+                    name: "OpenClaw installer",
+                    extensions: ["zip", "exe"],
+                  },
+                ],
+              });
+              if (typeof selected === "string") {
+                setState({ downloadPath: selected });
+              }
+            } catch (e) {
+              setError(String(e));
+            }
+          }}
+        >
+          {language === "zh" ? "浏览…" : "Browse…"}
+        </button>
+      </div>
       <label>{language === "zh" ? "安装目录" : "Install directory"}</label>
       <input
         type="text"
