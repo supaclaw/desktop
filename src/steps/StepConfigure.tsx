@@ -107,8 +107,7 @@ export function StepConfigure({ language, state, setState, setError, onNext, onB
               type="button"
               className="btn btn-primary"
               onClick={handleRunOnboardNonInteractive}
-              disabled={running || !state.installPath}
-              title={!state.installPath ? "Install OpenClaw first" : undefined}
+              disabled={running}
             >
               {running ? (
                 <>

@@ -449,10 +449,24 @@ pub async fn run_onboard(
     downloaded_path: Option<String>,
     args: Vec<String>,
 ) -> Result<(), String> {
-    let exe_path = resolve_openclaw_exe(&install_dir, downloaded_path.as_deref())?;
-    let cwd = exe_path.parent().ok_or("Invalid exe path")?;
+    let mut cmd;
+    let cwd;
 
-    let mut cmd = Command::new(&exe_path);
+    let install_dir_trimmed = install_dir.trim();
+    let downloaded_trimmed = downloaded_path.as_deref().map(str::trim).filter(|s| !s.is_empty());
+
+    if install_dir_trimmed.is_empty() && downloaded_trimmed.is_none() {
+        // Fallback: try to run `openclaw` from PATH when no install directory or downloaded path
+        // is provided. This supports users who installed OpenClaw separately and just want to
+        // run onboarding via the CLI on PATH.
+        cmd = Command::new("openclaw");
+        cwd = std::env::current_dir().map_err(|e| e.to_string())?;
+    } else {
+        let exe_path = resolve_openclaw_exe(&install_dir, downloaded_trimmed)?;
+        cwd = exe_path.parent().ok_or("Invalid exe path")?.to_path_buf();
+        cmd = Command::new(&exe_path);
+    }
+
     cmd.arg("onboard");
     cmd.arg("--non-interactive");
     for a in args {
@@ -461,7 +475,17 @@ pub async fn run_onboard(
             cmd.arg(trimmed);
         }
     }
-    let output = cmd.current_dir(cwd).output().map_err(|e| e.to_string())?;
+    let output = cmd
+        .current_dir(&cwd)
+        .output()
+        .map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                // Friendlier message when the executable cannot be found at all.
+                "openclaw executable not found (not installed or not on PATH; complete the install steps first)".to_string()
+            } else {
+                e.to_string()
+            }
+        })?;
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     let stdout = String::from_utf8_lossy(&output.stdout);
