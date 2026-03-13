@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { WizardState } from "../App";
 import type { Language } from "../i18n";
@@ -14,6 +14,33 @@ interface Props {
 
 export function StepGateway({ language, state, setState, setError, onNext, onBack }: Props) {
   const [starting, setStarting] = useState(false);
+  const [gatewayToken, setGatewayToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadToken = async () => {
+      try {
+        const cfgText = (await invoke("read_openclaw_config")) as string;
+        const cfg = JSON.parse(cfgText) as unknown;
+        const gw = (cfg as any)?.gateway;
+        if (gw && typeof gw === "object") {
+          const direct = typeof gw.token === "string" ? gw.token : null;
+          const authToken = typeof gw.authToken === "string" ? gw.authToken : null;
+          const nestedAuthToken =
+            gw.auth && typeof gw.auth === "object" && typeof gw.auth.token === "string"
+              ? gw.auth.token
+              : null;
+          const token = direct ?? authToken ?? nestedAuthToken ?? null;
+          if (token) {
+            setGatewayToken(token);
+          }
+        }
+      } catch {
+        // ignore; token is optional
+      }
+    };
+
+    void loadToken();
+  }, []);
 
   const handleStartGateway = async () => {
     setError(null);
@@ -72,6 +99,12 @@ export function StepGateway({ language, state, setState, setError, onNext, onBac
         <p>
           Start the OpenClaw gateway so it can accept connections and manage
           agents. The gateway will run in the background.
+        </p>
+      )}
+      {gatewayToken && (
+        <p className="muted">
+          {language === "zh" ? "当前网关访问令牌：" : "Current gateway access token:"}{" "}
+          <code>{gatewayToken}</code>
         </p>
       )}
       {state.gatewayRunning && (
