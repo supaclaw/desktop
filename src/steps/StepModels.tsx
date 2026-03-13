@@ -26,7 +26,15 @@ const API_TYPES = [
 ] as const;
 
 export function StepModels({ language, setError, onNext, onBack }: Props) {
-  const [cache, setCache] = useState<CachedProvidersModels>(() => getCachedProvidersModels() ?? { providers: {}, selectedModelKeys: [], primaryModelKey: null });
+  const [cache, setCache] = useState<CachedProvidersModels>(
+    () =>
+      getCachedProvidersModels() ?? {
+        providers: {},
+        selectedModelKeys: [],
+        primaryModelKey: null,
+        managedProviderIds: [],
+      }
+  );
   const [loading, setLoading] = useState(true);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
@@ -358,7 +366,6 @@ function ProviderForm({ language, cache, editId, setError, onSave, onCancel }: P
             value={id}
             onChange={(e) => setId(e.target.value)}
             placeholder="e.g. alibaba-cloud"
-            disabled={!!editId}
           />
         </label>
       </div>

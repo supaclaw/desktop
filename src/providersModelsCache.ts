@@ -30,13 +30,13 @@ export interface CachedProvidersModels {
   selectedModelKeys: string[];
   /** Primary model key e.g. "alibaba-cloud/qwen3-max-2026-01-23" */
   primaryModelKey: string | null;
+  /**
+   * Provider IDs that are managed by the desktop wizard.
+   * Providers in this list that are missing from `providers` will be removed
+   * from openclaw.json when merging, so deletions in the wizard propagate.
+   */
+  managedProviderIds?: string[];
 }
-
-const defaultCache: CachedProvidersModels = {
-  providers: {},
-  selectedModelKeys: [],
-  primaryModelKey: null,
-};
 
 export function getCachedProvidersModels(): CachedProvidersModels | null {
   try {
@@ -44,11 +44,16 @@ export function getCachedProvidersModels(): CachedProvidersModels | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as CachedProvidersModels;
     if (!parsed || typeof parsed !== "object") return null;
+    const providers = parsed.providers && typeof parsed.providers === "object" ? parsed.providers : {};
+    const managedProviderIds = Array.isArray(parsed.managedProviderIds)
+      ? parsed.managedProviderIds
+      : Object.keys(providers);
     return {
-      providers: parsed.providers && typeof parsed.providers === "object" ? parsed.providers : {},
+      providers,
       selectedModelKeys: Array.isArray(parsed.selectedModelKeys) ? parsed.selectedModelKeys : [],
       primaryModelKey:
         typeof parsed.primaryModelKey === "string" ? parsed.primaryModelKey : null,
+      managedProviderIds,
     };
   } catch {
     return null;
@@ -81,6 +86,18 @@ export function mergeCacheIntoOpenClawConfig(
   const existingModels = (out.models as Record<string, unknown>) ?? {};
   const existingProviders = (existingModels.providers as Record<string, unknown>) ?? {};
   const mergedProviders = { ...existingProviders };
+
+  // Remove providers that are managed by the wizard but no longer present in cache.providers.
+  const managedIds =
+    Array.isArray(cache.managedProviderIds) && cache.managedProviderIds.length > 0
+      ? cache.managedProviderIds
+      : Object.keys(cache.providers ?? {});
+  for (const id of managedIds) {
+    if (!(id in cache.providers) && id in mergedProviders) {
+      delete mergedProviders[id];
+    }
+  }
+
   for (const [id, prov] of Object.entries(cache.providers)) {
     if (prov && typeof prov === "object" && typeof (prov as CachedProvider).baseUrl === "string") {
       const typedProv = prov as CachedProvider;
@@ -108,6 +125,21 @@ export function mergeCacheIntoOpenClawConfig(
 
     const existingModelsMap = (defaults.models as Record<string, unknown>) ?? {};
     const modelsMap = { ...existingModelsMap };
+
+    // Drop models from managed providers that are no longer selected in cache.selectedModelKeys.
+    const managedIds =
+      Array.isArray(cache.managedProviderIds) && cache.managedProviderIds.length > 0
+        ? cache.managedProviderIds
+        : Object.keys(cache.providers ?? {});
+    const selectedSet = new Set(cache.selectedModelKeys);
+    for (const key of Object.keys(modelsMap)) {
+      const slash = key.indexOf("/");
+      if (slash <= 0) continue;
+      const providerId = key.slice(0, slash);
+      if (managedIds.includes(providerId) && !selectedSet.has(key)) {
+        delete modelsMap[key];
+      }
+    }
     for (const key of cache.selectedModelKeys) {
       modelsMap[key] = modelsMap[key] ?? {};
     }
@@ -180,5 +212,6 @@ export function configToCache(config: Record<string, unknown>): CachedProvidersM
     providers,
     selectedModelKeys,
     primaryModelKey,
+    managedProviderIds: Object.keys(providers),
   };
 }
