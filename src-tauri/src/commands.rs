@@ -729,3 +729,78 @@ pub async fn get_build_info() -> Result<BuildInfo, String> {
         commit_date,
     })
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FetchedModel {
+    pub id: String,
+    pub name: Option<String>,
+}
+
+#[tauri::command]
+pub async fn fetch_models_from_provider(
+    base_url: String,
+    api_key: Option<String>,
+) -> Result<Vec<FetchedModel>, String> {
+    let base = base_url.trim().trim_end_matches('/');
+    if base.is_empty() {
+        return Err("baseUrl is required".to_string());
+    }
+    let url = format!("{}/models", base);
+
+    let client = build_http_client(None)?;
+    let mut req = client.get(&url);
+    if let Some(key) = api_key.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        req = req.header("Authorization", format!("Bearer {}", key));
+    }
+
+    let resp = req.send().await.map_err(|e| e.to_string())?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!(
+            "GET {} failed: {} {}",
+            url,
+            status.as_u16(),
+            if body.len() > 200 { format!("{}...", &body[..200]) } else { body }
+        ));
+    }
+
+    let text = resp.text().await.map_err(|e| e.to_string())?;
+    let value: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+
+    let list: Vec<FetchedModel> = if let Some(arr) = value.get("data").and_then(|v| v.as_array()) {
+        arr.iter()
+            .filter_map(|v| {
+                let id = v.get("id").and_then(|x| x.as_str()).map(String::from);
+                id.map(|id| FetchedModel {
+                    name: v.get("name").and_then(|x| x.as_str()).map(String::from),
+                    id,
+                })
+            })
+            .collect()
+    } else if let Some(arr) = value.get("models").and_then(|v| v.as_array()) {
+        arr.iter()
+            .filter_map(|v| {
+                let id = v.get("id").and_then(|x| x.as_str()).map(String::from);
+                id.map(|id| FetchedModel {
+                    name: v.get("name").and_then(|x| x.as_str()).map(String::from),
+                    id,
+                })
+            })
+            .collect()
+    } else if let Some(arr) = value.as_array() {
+        arr.iter()
+            .filter_map(|v| {
+                let id = v.get("id").and_then(|x| x.as_str()).map(String::from);
+                id.map(|id| FetchedModel {
+                    name: v.get("name").and_then(|x| x.as_str()).map(String::from),
+                    id,
+                })
+            })
+            .collect()
+    } else {
+        return Err("Response is not a known models list format (expected 'data' or 'models' array)".to_string());
+    };
+
+    Ok(list)
+}

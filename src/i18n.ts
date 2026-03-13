@@ -6,7 +6,7 @@ export const LANGUAGE_LABELS: Record<Language, string> = {
 };
 
 export const STEP_TITLES: Record<
-  "welcome" | "download" | "install" | "configure" | "gateway" | "skills" | "done",
+  "welcome" | "download" | "install" | "models" | "configure" | "gateway" | "skills" | "done",
   Record<Language, string>
 > = {
   welcome: {
@@ -20,6 +20,10 @@ export const STEP_TITLES: Record<
   install: {
     en: "Install",
     zh: "安装",
+  },
+  models: {
+    en: "Models",
+    zh: "模型",
   },
   configure: {
     en: "Configure",

@@ -41,6 +41,7 @@ pub fn run() {
             commands::wait_for_local_port,
             commands::get_build_info,
             commands::clean_openclaw_temp,
+            commands::fetch_models_from_provider,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

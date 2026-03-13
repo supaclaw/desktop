@@ -5,11 +5,12 @@ import type { BuildInfo, GitHubRelease } from "./types";
 import { StepWelcome } from "./steps/StepWelcome";
 import { StepDownload } from "./steps/StepDownload";
 import { StepInstall } from "./steps/StepInstall";
+import { StepModels } from "./steps/StepModels";
 import { StepConfigure } from "./steps/StepConfigure";
 import { StepGateway } from "./steps/StepGateway";
 import { StepSkills } from "./steps/StepSkills";
 import { StepDone } from "./steps/StepDone";
-import { LANGUAGE_LABELS, STEP_TITLES, TEXT, type Language } from "./i18n";
+import { STEP_TITLES, TEXT, type Language } from "./i18n";
 import "./App.css";
 
 const PROJECT_GITHUB_URL = "https://github.com/supaclaw/desktop";
@@ -18,6 +19,7 @@ const STEPS = [
   { id: "welcome" },
   { id: "download" },
   { id: "install" },
+  { id: "models" },
   { id: "configure" },
   { id: "gateway" },
   { id: "skills" },
@@ -270,6 +272,16 @@ function App() {
         )}
         {stepId === "install" && (
           <StepInstall
+            language={language}
+            state={state}
+            setState={setStatePartial}
+            setError={setError}
+            onNext={goNext}
+            onBack={goBack}
+          />
+        )}
+        {stepId === "models" && (
+          <StepModels
             language={language}
             state={state}
             setState={setStatePartial}
