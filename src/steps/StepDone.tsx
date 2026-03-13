@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import confetti from "canvas-confetti";
 import type { WizardState } from "../App";
 import type { Language } from "../i18n";
@@ -39,13 +39,12 @@ export function StepDone({ language, state, onBack }: Props) {
     }).catch(() => {});
   };
 
-  const handleClose = () => {
+  const handleClose = async () => {
     try {
-      const win = getCurrentWebviewWindow();
-      win.close().catch(() => {
-        window.close();
-      });
+      const win = getCurrentWindow();
+      await win.close();
     } catch {
+      // Fallback for plain browser / non-Tauri contexts.
       window.close();
     }
   };
