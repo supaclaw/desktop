@@ -103,8 +103,24 @@ export function StepGateway({ language, state, setState, setError, onNext, onBac
       )}
       {gatewayToken && (
         <p className="muted">
-          {language === "zh" ? "当前网关访问令牌：" : "Current gateway access token:"}{" "}
-          <code>{gatewayToken}</code>
+          <span>
+            {language === "zh" ? "当前网关访问令牌：" : "Current gateway access token:"}{" "}
+            <code>{gatewayToken}</code>
+          </span>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={{ marginLeft: "0.75rem" }}
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(gatewayToken);
+              } catch {
+                // ignore copy errors
+              }
+            }}
+          >
+            {language === "zh" ? "复制" : "Copy"}
+          </button>
         </p>
       )}
       {state.gatewayRunning && (
