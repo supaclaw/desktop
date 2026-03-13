@@ -177,6 +177,21 @@ export function StepConfigure({ language, state, setState, setError, onNext, onB
     setError(null);
     setRunning(true);
     try {
+      // If an existing config file is present but empty, initialize it to a minimal
+      // JSON object so the OpenClaw CLI's JSON5 parser does not fail with
+      // "invalid end of input". This mirrors what `openclaw doctor --fix` would do.
+      try {
+        const existing = await invoke<string>("read_openclaw_config");
+        if (typeof existing === "string" && existing.trim().length === 0) {
+          await invoke("write_openclaw_config", {
+            installDir: state.installPath,
+            config: {},
+          });
+        }
+      } catch {
+        // Ignore read/write errors here; the onboard command below will surface them if relevant.
+      }
+
       const args: string[] = ["--accept-risk"];
       await invoke("run_onboard", {
         installDir: state.installPath,

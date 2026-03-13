@@ -83,7 +83,19 @@ export function mergeCacheIntoOpenClawConfig(
   const mergedProviders = { ...existingProviders };
   for (const [id, prov] of Object.entries(cache.providers)) {
     if (prov && typeof prov === "object" && typeof (prov as CachedProvider).baseUrl === "string") {
-      mergedProviders[id] = prov;
+      const typedProv = prov as CachedProvider;
+      const safeModels = Array.isArray(typedProv.models)
+        ? typedProv.models.map((m) => ({
+            ...m,
+            // Some server-side schemas expect `name` to be a string; fall back to id when missing.
+            name: typeof m.name === "string" && m.name.length > 0 ? m.name : m.id,
+          }))
+        : [];
+
+      mergedProviders[id] = {
+        ...typedProv,
+        models: safeModels,
+      };
     }
   }
   out.models = { ...existingModels, providers: mergedProviders };
