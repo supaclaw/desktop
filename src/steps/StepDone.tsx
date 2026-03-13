@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import confetti from "canvas-confetti";
 import type { WizardState } from "../App";
 import type { Language } from "../i18n";
@@ -36,6 +37,17 @@ export function StepDone({ language, state, onBack }: Props) {
     invoke("open_url", {
       url: "https://github.com/supaclaw/openclaw/releases",
     }).catch(() => {});
+  };
+
+  const handleClose = () => {
+    try {
+      const win = getCurrentWebviewWindow();
+      win.close().catch(() => {
+        window.close();
+      });
+    } catch {
+      window.close();
+    }
   };
 
   return (
@@ -84,6 +96,9 @@ export function StepDone({ language, state, onBack }: Props) {
       <div className="step-actions">
         <button type="button" className="btn btn-secondary" onClick={onBack}>
           {language === "zh" ? "上一步" : "Back"}
+        </button>
+        <button type="button" className="btn btn-primary" onClick={handleClose}>
+          {language === "zh" ? "关闭" : "Close"}
         </button>
       </div>
     </div>
