@@ -1,5 +1,4 @@
 import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { WizardState } from "../App";
 import type { Language } from "../i18n";
 
@@ -14,16 +13,6 @@ export function StepDone({ language, state, onBack }: Props) {
     invoke("open_url", {
       url: "https://github.com/supaclaw/openclaw/releases",
     }).catch(() => {});
-  };
-
-  const handleClose = async () => {
-    try {
-      const win = getCurrentWindow();
-      await win.close();
-    } catch {
-      // Fallback for plain browser / non-Tauri contexts.
-      window.close();
-    }
   };
 
   return (
@@ -72,9 +61,6 @@ export function StepDone({ language, state, onBack }: Props) {
       <div className="step-actions">
         <button type="button" className="btn btn-secondary" onClick={onBack}>
           {language === "zh" ? "上一步" : "Back"}
-        </button>
-        <button type="button" className="btn btn-primary" onClick={handleClose}>
-          {language === "zh" ? "关闭" : "Close"}
         </button>
       </div>
     </div>
