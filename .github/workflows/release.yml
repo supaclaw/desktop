@@ -43,6 +43,17 @@ jobs:
           prerelease: false
           args: '--bundles msi'
 
+      - name: Upload Windows x64 MSI
+        env:
+          GITHUB_TOKEN: ${{ secrets.SUPACLAW_TOKEN }}
+        run: |
+          $tag = "${{ github.event.release.tag_name }}"
+          $version = $tag.TrimStart('v')
+          $msiSrc = "src-tauri/target/release/bundle/msi/OpenClaw Desktop Wizard_${version}_x64_en-US.msi"
+          $msiDest = "openclaw-desktop_${version}_x64.msi"
+          Copy-Item $msiSrc $msiDest
+          gh release upload $tag $msiDest --clobber
+
       - name: Upload Windows x64 executable
         env:
           GITHUB_TOKEN: ${{ secrets.SUPACLAW_TOKEN  }}
@@ -52,21 +63,3 @@ jobs:
           $exeName = "openclaw-desktop_${version}_x64.exe"
           Copy-Item "src-tauri/target/release/openclaw-desktop.exe" $exeName
           gh release upload $tag $exeName --clobber
-
-      - name: Strip _en-US from MSI asset name
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.SUPACLAW_TOKEN  }}
-        run: |
-          TAG="${{ github.event.release.tag_name }}"
-          VERSION="${TAG#v}"
-          ARCH="x64"
-          OLD_NAME="openclaw-desktop_${VERSION}_${ARCH}_en-US.msi"
-          NEW_NAME="openclaw-desktop_${VERSION}_${ARCH}.msi"
-          ASSET_ID=$(gh api "repos/${{ github.repository }}/releases" --jq ".[] | select(.tag_name == \"$TAG\") | .assets[] | select(.name == \"$OLD_NAME\") | .id")
-          if [ -n "$ASSET_ID" ]; then
-            gh release download "$TAG" -p "$OLD_NAME"
-            mv "$OLD_NAME" "$NEW_NAME"
-            gh api -X DELETE "repos/${{ github.repository }}/releases/assets/$ASSET_ID"
-            gh release upload "$TAG" "$NEW_NAME" --clobber
-          fi
