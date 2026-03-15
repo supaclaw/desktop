@@ -43,19 +43,6 @@ jobs:
           prerelease: false
           args: '--bundles msi'
 
-      - name: Upload Windows x64 MSI
-        env:
-          GITHUB_TOKEN: ${{ secrets.SUPACLAW_TOKEN }}
-        run: |
-          $tag = "${{ github.event.release.tag_name }}"
-          $version = $tag.TrimStart('v')
-          $defaultMsi = "OpenClaw Desktop Wizard_${version}_x64_en-US.msi"
-          gh release delete-asset $tag $defaultMsi 2>&1 | Out-Null; $LASTEXITCODE = 0
-          $msiSrc = "src-tauri/target/release/bundle/msi/$defaultMsi"
-          $msiDest = "openclaw-desktop_${version}_x64.msi"
-          Copy-Item $msiSrc $msiDest
-          gh release upload $tag $msiDest --clobber
-
       - name: Upload Windows x64 executable
         env:
           GITHUB_TOKEN: ${{ secrets.SUPACLAW_TOKEN  }}

@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "OpenClaw Desktop Wizard",
+  "productName": "openclaw-desktop",
   "version": "1.3.1",
   "identifier": "com.supaclaw.openclaw-desktop",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "OpenClaw Desktop Wizard",
+        "title": "OpenClaw Desktop",
         "width": 720,
         "height": 580,
         "resizable": true,
@@ -35,7 +35,7 @@
       "timestampUrl": ""
     },
     "longDescription": "Wizard to download, install, configure OpenClaw, run gateway, and install skills and tools.",
-    "shortDescription": "OpenClaw desktop setup wizard",
+    "shortDescription": "OpenClaw Desktop",
     "category": "DeveloperTool",
     "copyright": "Copyright © 2026 supaclaw",
     "resources": []
