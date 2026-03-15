@@ -49,7 +49,9 @@ jobs:
         run: |
           $tag = "${{ github.event.release.tag_name }}"
           $version = $tag.TrimStart('v')
-          $msiSrc = "src-tauri/target/release/bundle/msi/OpenClaw Desktop Wizard_${version}_x64_en-US.msi"
+          $defaultMsi = "OpenClaw Desktop Wizard_${version}_x64_en-US.msi"
+          gh release delete-asset $tag $defaultMsi 2>&1 | Out-Null; $LASTEXITCODE = 0
+          $msiSrc = "src-tauri/target/release/bundle/msi/$defaultMsi"
           $msiDest = "openclaw-desktop_${version}_x64.msi"
           Copy-Item $msiSrc $msiDest
           gh release upload $tag $msiDest --clobber
