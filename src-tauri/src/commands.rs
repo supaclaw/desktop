@@ -645,6 +645,40 @@ pub async fn clawhub_search(query: String) -> Result<String, String> {
     }
 }
 
+const HUB_DEFAULT_BASE: &str = "http://localhost:3002";
+
+/// Search skills via SupaClaw Hub API (GET /api/skills). Base URL default: http://localhost:3002.
+#[tauri::command]
+pub async fn hub_search_skills(
+    query: String,
+    base_url: Option<String>,
+) -> Result<String, String> {
+    let base = base_url
+        .as_deref()
+        .map(|s| s.trim().trim_end_matches('/'))
+        .filter(|s| !s.is_empty())
+        .unwrap_or(HUB_DEFAULT_BASE);
+    let q = query.trim();
+    let url = format!("{}/api/skills", base);
+    let client = build_http_client(None)?;
+    let mut req = client.get(&url);
+    if !q.is_empty() {
+        req = req.query(&[("q", q)]);
+    }
+    let res = req.send().await.map_err(|e| e.to_string())?;
+    if !res.status().is_success() {
+        let status = res.status();
+        let body = res.text().await.unwrap_or_default();
+        return Err(format!(
+            "SupaClaw Hub API error {}: {}",
+            status,
+            if body.is_empty() { "no body" } else { body.trim() }
+        ));
+    }
+    let body = res.text().await.map_err(|e| e.to_string())?;
+    Ok(body)
+}
+
 #[tauri::command]
 pub async fn write_openclaw_config(
     _app: AppHandle,

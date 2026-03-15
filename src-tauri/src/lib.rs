@@ -28,6 +28,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::fetch_openclaw_releases,
             commands::clawhub_search,
+            commands::hub_search_skills,
             commands::download_openclaw,
             commands::install_openclaw,
             commands::get_install_path,

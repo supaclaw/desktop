@@ -3,6 +3,27 @@ import { invoke } from "@tauri-apps/api/core";
 import type { WizardState } from "../App";
 import type { Language } from "../i18n";
 
+/** Format Hub API JSON for display: list of skills as lines, or pretty-printed JSON. */
+function formatHubSearchResults(json: string): string {
+  try {
+    const data = JSON.parse(json);
+    const arr = Array.isArray(data) ? data : data?.skills ?? data?.data;
+    if (Array.isArray(arr) && arr.length > 0) {
+      return arr
+        .map((s: Record<string, unknown>) => {
+          const name = s.name ?? s.slug ?? "?";
+          const slug = typeof s.slug === "string" ? ` (${s.slug})` : "";
+          const desc = s.description ?? "";
+          return `- ${name}${slug}${desc ? ": " + String(desc) : ""}`;
+        })
+        .join("\n");
+    }
+    return JSON.stringify(data, null, 2);
+  } catch {
+    return json;
+  }
+}
+
 interface Props {
   language: Language;
   state: WizardState;
@@ -16,7 +37,26 @@ export function StepSkills({ language, state, setState, setError, onNext, onBack
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<string | null>(null);
+  const [hubSearchQuery, setHubSearchQuery] = useState("");
+  const [hubSearching, setHubSearching] = useState(false);
+  const [hubSearchResults, setHubSearchResults] = useState<string | null>(null);
   const [installing, setInstalling] = useState(false);
+
+  const handleHubSearch = async () => {
+    setError(null);
+    setHubSearching(true);
+    setHubSearchResults(null);
+    try {
+      const json = await invoke<string>("hub_search_skills", {
+        query: hubSearchQuery.trim(),
+        baseUrl: undefined,
+      });
+      setHubSearchResults(json);
+    } catch (e) {
+      setError(String(e));
+    }
+    setHubSearching(false);
+  };
 
   const handleSearchSkills = async () => {
     setError(null);
@@ -59,6 +99,54 @@ export function StepSkills({ language, state, setState, setError, onNext, onBack
           ? "安装技能与工具"
           : "Install Skills & Tools"}
       </h2>
+
+      <div className="step-section">
+        <h3>{language === "zh" ? "使用 SupaClaw Hub 搜索技能" : "Search skills with SupaClaw Hub"}</h3>
+        {language === "zh" ? (
+          <p>
+            SupaClaw Hub 是技能目录，部署在本地 <strong>http://localhost:3002</strong>。
+            下方通过 Hub API 搜索技能（兼容 ClawHub 格式）。请确保 Hub 已启动。
+          </p>
+        ) : (
+          <p>
+            SupaClaw Hub is a skill directory at <strong>http://localhost:3002</strong>.
+            Search skills via the Hub API below (ClawHub-compatible). Ensure the hub is running.
+          </p>
+        )}
+        <div className="config-helper">
+          <div className="config-helper-row">
+            <input
+              type="text"
+              value={hubSearchQuery}
+              onChange={(e) => setHubSearchQuery(e.target.value)}
+              placeholder={
+                language === "zh"
+                  ? "例如：find-skill、知识库…"
+                  : "e.g. find-skill, knowledge base…"
+              }
+            />
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleHubSearch}
+              disabled={hubSearching || !hubSearchQuery.trim()}
+            >
+              {hubSearching
+                ? language === "zh"
+                  ? "正在搜索…"
+                  : "Searching…"
+                : language === "zh"
+                  ? "使用 supaclaw hub 搜索"
+                  : "Search with supaclaw hub"}
+            </button>
+          </div>
+          {hubSearchResults !== null && (
+            <pre className="config-textarea" style={{ whiteSpace: "pre-wrap" }}>
+              {formatHubSearchResults(hubSearchResults)}
+            </pre>
+          )}
+        </div>
+      </div>
 
       <div className="step-section">
         <h3>{language === "zh" ? "使用 ClawHub 搜索技能" : "Search skills with ClawHub"}</h3>

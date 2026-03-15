@@ -8,7 +8,7 @@ A **Tauri 2** Windows desktop app that guides you through downloading, installin
 - **Install** – Extract or copy the build to a chosen directory (default: `%LOCALAPPDATA%\OpenClaw`).
 - **Configure** – Review install path and optional PATH setup.
 - **Run gateway** – Start the OpenClaw gateway from the install directory.
-- **Install Skills & Tools** – Use the ClawHub CLI (`clawhub search`, see `https://docs.openclaw.ai/tools/clawhub`) from the wizard to search skills in your workspace and trigger `openclaw skills install` / `openclaw tools install` for the current OpenClaw workspace.
+- **Install Skills & Tools** – Search skills via the [SupaClaw Hub](https://github.com/supaclaw/hub) API (Hub at **http://localhost:3002**) or the ClawHub CLI (`clawhub search`, see `https://docs.openclaw.ai/tools/clawhub`) from within the wizard; then trigger `openclaw skills install` / `openclaw tools install` for the current OpenClaw workspace.
 
 ## Prerequisites
 
@@ -54,11 +54,30 @@ npm run tauri build
 
   Then rebuild with `npm run tauri build` and reinstall the app.
 
-## Project layout
+## SupaClaw Hub (local deployment)
 
-- `src/` – React + Vite frontend (wizard UI).
-- `src-tauri/` – Tauri 2 Rust app and commands (fetch releases, download, install, run gateway, open URL).
-- `src-tauri/capabilities/` – Tauri capabilities (permissions for shell, http, fs, process).
+The wizard’s “Search skills with SupaClaw Hub” step calls the Hub API (`GET /api/skills`) at **http://localhost:3002**. Run the hub locally so the wizard can search skills (see [supaclaw/hub](https://github.com/supaclaw/hub)):
+
+**Quick start (Node):**
+
+```bash
+cd /path/to/supaclaw/hub
+npm install
+npm run init-db   # optional; server creates data/ and DB on first run
+npm start
+```
+
+The hub serves at **http://localhost:3002** (browse and upload skills in a browser if desired).
+
+**Docker:**
+
+```bash
+cd /path/to/supaclaw/hub
+docker compose build
+docker compose up -d
+```
+
+The hub runs on **http://localhost:3002**. Data is in the `hub-data` volume. Stop with `docker compose down`. Environment: `PORT` (default `3002`), `SQLITE_PATH` (default `data/hub.db`).
 
 ## Tech stack
 
