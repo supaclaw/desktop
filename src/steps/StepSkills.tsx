@@ -95,9 +95,7 @@ export function StepSkills({ language, state, setState, setError, onNext, onBack
   return (
     <div className="step-card">
       <h2>
-        {language === "zh"
-          ? "安装技能与工具"
-          : "Install Skills & Tools"}
+        {language === "zh" ? "搜索技能" : "Search Skills"}
       </h2>
 
       <div className="step-section">
@@ -105,12 +103,16 @@ export function StepSkills({ language, state, setState, setError, onNext, onBack
         {language === "zh" ? (
           <p>
             SupaClaw Hub 是技能目录，部署在本地 <strong>http://localhost:3002</strong>。
-            下方通过 Hub API 搜索技能（兼容 ClawHub 格式）。请确保 Hub 已启动。
+            下方通过 Hub API 搜索技能（兼容 ClawHub 格式），并在浏览器中使用 Hub 页面中提供的
+            <code>curl</code> 安装命令将技能安装到当前 OpenClaw 工作区的
+            <code>~/.openclaw/workspace/skills</code> 目录中。请确保 Hub 已启动。
           </p>
         ) : (
           <p>
             SupaClaw Hub is a skill directory at <strong>http://localhost:3002</strong>.
-            Search skills via the Hub API below (ClawHub-compatible). Ensure the hub is running.
+            Search skills via the Hub API below (ClawHub-compatible), then in your browser use the
+            <code>curl</code>-based install command shown on the Hub skill page to install skills into this
+            OpenClaw workspace at <code>~/.openclaw/workspace/skills</code>. Ensure the hub is running.
           </p>
         )}
         <div className="config-helper">
@@ -198,52 +200,6 @@ export function StepSkills({ language, state, setState, setError, onNext, onBack
               {searchResults}
             </pre>
           )}
-        </div>
-      </div>
-
-      <div className="step-section">
-        <h3>
-          {language === "zh"
-            ? "将技能安装到当前 OpenClaw 工作区"
-            : "Install skills into this OpenClaw workspace"}
-        </h3>
-        {language === "zh" ? (
-          <p>
-            点击下方按钮将在当前安装目录中运行{" "}
-            <code>openclaw skills install</code> 和{" "}
-            <code>openclaw tools install</code>，以便根据配置将技能与工具安装到
-            OpenClaw 工作区。
-          </p>
-        ) : (
-          <p>
-            Click the button below to run{" "}
-            <code>openclaw skills install</code> and{" "}
-            <code>openclaw tools install</code> in the current install directory,
-            installing configured skills and tools into your OpenClaw workspace.
-          </p>
-        )}
-        {state.skillsInstalled && (
-          <p className="loading">
-            {language === "zh"
-              ? "技能与工具安装命令已触发，你可以在 OpenClaw 终端或日志中查看详细进度。"
-              : "Skills and tools install has been triggered; check your OpenClaw terminal or logs for detailed progress."}
-          </p>
-        )}
-        <div className="step-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={handleInstallSkillsTools}
-            disabled={installing || !state.installPath}
-          >
-            {installing
-              ? language === "zh"
-                ? "正在触发安装…"
-                : "Triggering install…"
-              : language === "zh"
-                ? "运行 openclaw skills/tools install"
-                : "Run openclaw skills/tools install"}
-          </button>
         </div>
       </div>
 

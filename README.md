@@ -8,7 +8,7 @@ A **Tauri 2** Windows desktop app that guides you through downloading, installin
 - **Install** – Extract or copy the build to a chosen directory (default: `%LOCALAPPDATA%\OpenClaw`).
 - **Configure** – Review install path and optional PATH setup.
 - **Run gateway** – Start the OpenClaw gateway from the install directory.
-- **Install Skills & Tools** – Search skills via the [SupaClaw Hub](https://github.com/supaclaw/hub) API (Hub at **http://localhost:3002**) or the ClawHub CLI (`clawhub search`, see `https://docs.openclaw.ai/tools/clawhub`) from within the wizard; then trigger `openclaw skills install` / `openclaw tools install` for the current OpenClaw workspace.
+- **Search Skills** – Search skills via the [SupaClaw Hub](https://github.com/supaclaw/hub) API (Hub at **http://localhost:3002**) or the ClawHub CLI (`clawhub search`, see `https://docs.openclaw.ai/tools/clawhub`) from within the wizard. For SupaClaw Hub, use the curl-based install commands shown in each skill card’s popup to download, unzip, and place skills into `~/.openclaw/workspace/skills` for the current OpenClaw workspace.
 
 ## Prerequisites
 
