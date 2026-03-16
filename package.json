@@ -1,6 +1,6 @@
 {
   "name": "openclaw-desktop",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "OpenClaw desktop wizard - download, install, configure, run gateway, install skills and tools",
   "type": "module",
   "scripts": {
