@@ -152,9 +152,26 @@ export function StepGateway({ language, state, setState, setError, onNext, onBac
             )}
           </button>
         ) : (
-          <button type="button" className="btn btn-primary" onClick={onNext}>
-            {language === "zh" ? "下一步：技能与工具" : "Next: Skills & Tools"}
-          </button>
+          <>
+            <button type="button" className="btn btn-primary" onClick={onNext}>
+              {language === "zh" ? "下一步：技能与工具" : "Next: Skills & Tools"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleStartGateway}
+              disabled={starting}
+            >
+              {starting ? (
+                <>
+                  <span className="spinner" />
+                  {language === "zh" ? "正在重启…" : "Restarting…"}
+                </>
+              ) : (
+                language === "zh" ? "重启网关" : "Restart Gateway"
+              )}
+            </button>
+          </>
         )}
       </div>
     </div>
