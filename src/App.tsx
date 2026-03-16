@@ -220,9 +220,14 @@ function App() {
             type="button"
             className="language-toggle"
             onClick={() => setLanguage((prev) => (prev === "en" ? "zh" : "en"))}
-            aria-label={language === "en" ? "Switch to Chinese" : "切换到英文"}
+            aria-label={
+              language === "en"
+                ? "Switch language / 切换语言"
+                : "切换语言 / Switch language"
+            }
+            title="EN / 中文"
           >
-            {language === "en" ? "EN" : "中文"}
+            EN / 中文
           </button>
         </div>
         <nav className="step-nav">
