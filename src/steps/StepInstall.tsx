@@ -28,7 +28,7 @@ export function StepInstall({ language, state, setState, setError, onNext, onBac
     const installPath = state.installPath.trim();
     if (!downloadPath || !installPath) {
       setError(
-        "Missing path. Go back to Download, or paste the path to an existing OpenClaw .zip/.exe, and choose an install directory."
+        "Missing path. Go back to Download, or paste the path to an existing OpenClaw .exe, and choose an install directory."
       );
       return;
     }
@@ -61,7 +61,7 @@ export function StepInstall({ language, state, setState, setError, onNext, onBac
         </p>
       )}
       <label>
-        {language === "zh" ? "下载文件路径（.zip 或 .exe）" : "Downloaded file path (.zip or .exe)"}
+        {language === "zh" ? "下载文件路径（.exe）" : "Downloaded file path (.exe)"}
       </label>
       <div className="input-row">
         <input
@@ -70,8 +70,8 @@ export function StepInstall({ language, state, setState, setError, onNext, onBac
           onChange={(e) => setState({ downloadPath: e.target.value })}
           placeholder={
             language === "zh"
-              ? "例如：C:\\Users\\You\\Downloads\\openclaw-v1.5.0-windows-x64-portable.zip"
-              : "e.g. C:\\Users\\You\\Downloads\\openclaw-v1.5.0-windows-x64-portable.zip"
+              ? "例如：C:\\Users\\You\\Downloads\\openclaw-v1.5.0-windows-x64-installer.exe"
+              : "e.g. C:\\Users\\You\\Downloads\\openclaw-v1.5.0-windows-x64-installer.exe"
           }
         />
         <button
@@ -84,7 +84,7 @@ export function StepInstall({ language, state, setState, setError, onNext, onBac
                 filters: [
                   {
                     name: "OpenClaw installer",
-                    extensions: ["zip", "exe"],
+                    extensions: ["exe"],
                   },
                 ],
               });

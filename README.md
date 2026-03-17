@@ -4,7 +4,7 @@ A **Tauri 2** Windows desktop app that guides you through downloading, installin
 
 ## What it does
 
-- **Download** – Pick an OpenClaw version and Windows asset (e.g. `openclaw-v1.5.0-windows-x64-portable.zip` or `.exe`) and download it.
+- **Download** – Pick an OpenClaw version and Windows asset (the `.exe`) and download it.
 - **Install** – Extract or copy the build to a chosen directory (default: `%LOCALAPPDATA%\OpenClaw`).
 - **Configure** – Review install path and optional PATH setup.
 - **Run gateway** – Start the OpenClaw gateway from the install directory.

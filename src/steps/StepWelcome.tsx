@@ -29,7 +29,7 @@ function loadReleases(
         const winAsset = latest.assets.find(
           (a) =>
             a.name.includes("windows") &&
-            (a.name.endsWith(".exe") || a.name.endsWith(".zip"))
+            a.name.endsWith(".exe")
         );
         if (winAsset) {
           setState({
@@ -64,7 +64,7 @@ export function StepWelcome({ language, state, setState, setError, onNext }: Pro
           const winAsset = latest.assets.find(
             (a) =>
               a.name.includes("windows") &&
-              (a.name.endsWith(".exe") || a.name.endsWith(".zip"))
+              a.name.endsWith(".exe")
           );
           if (winAsset) {
             setState({
@@ -152,8 +152,8 @@ export function StepWelcome({ language, state, setState, setError, onNext }: Pro
           type="text"
           placeholder={
             language === "zh"
-              ? "例如：https://downloads.example.com/openclaw/openclaw-windows-x64.zip"
-              : "e.g. https://downloads.example.com/openclaw/openclaw-windows-x64.zip"
+              ? "例如：https://downloads.example.com/openclaw/openclaw-windows-x64.exe"
+              : "e.g. https://downloads.example.com/openclaw/openclaw-windows-x64.exe"
           }
           value={state.downloadUrl}
           onChange={(e) => {
@@ -264,7 +264,7 @@ export function StepWelcome({ language, state, setState, setError, onNext }: Pro
                   ?.assets.filter(
                     (a) =>
                       a.name.includes("windows") &&
-                      (a.name.endsWith(".exe") || a.name.endsWith(".zip"))
+                      a.name.endsWith(".exe")
                   )
                   .map((a) => (
                     <option key={a.name} value={a.name}>
