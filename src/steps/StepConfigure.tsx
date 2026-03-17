@@ -172,6 +172,10 @@ export function StepConfigure({ language, state, setState, setError, onNext, onB
   const [configParseError, setConfigParseError] = useState<string | null>(null);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
+  const isWindows = navigator.userAgent.includes("Windows");
+  const onboardCommand = isWindows
+    ? "openclaw onboard --non-interactive --accept-risk --install-daemon"
+    : "openclaw onboard --non-interactive --accept-risk";
 
   const handleRunOnboardNonInteractive = async () => {
     setError(null);
@@ -193,6 +197,9 @@ export function StepConfigure({ language, state, setState, setError, onNext, onB
       }
 
       const args: string[] = ["--accept-risk"];
+      if (isWindows) {
+        args.push("--install-daemon");
+      }
       await invoke("run_onboard", {
         installDir: state.installPath,
         downloadedPath: state.downloadPath?.trim() || null,
@@ -384,15 +391,15 @@ export function StepConfigure({ language, state, setState, setError, onNext, onB
         {language === "zh" ? (
           <p>
             这将使用 OpenClaw 默认配置运行{" "}
-            <code>openclaw onboard --non-interactive --accept-risk</code>。在 Windows
-            上，引导过程会把配置保存到 <code>%USERPROFILE%\.openclaw\openclaw.json</code>，这是
+            <code>{onboardCommand}</code>。在 Windows
+            上，这还会安装托管网关守护进程，避免非交互式模式仅等待一个已在运行的 gateway。引导过程会把配置保存到 <code>%USERPROFILE%\.openclaw\openclaw.json</code>，这是
             OpenClaw 默认的配置路径（参见 <code>https://docs.openclaw.ai/cli/onboard</code> 和{" "}
             <code>https://docs.openclaw.ai/security</code>）。
           </p>
         ) : (
           <p>
-            This runs <code>openclaw onboard --non-interactive --accept-risk</code> using OpenClaw defaults. On Windows,
-            onboarding saves configuration to <code>%USERPROFILE%\.openclaw\openclaw.json</code>, the default OpenClaw config
+            This runs <code>{onboardCommand}</code> using OpenClaw defaults. On Windows,
+            this also installs the managed gateway daemon so non-interactive onboarding does not only wait for an already-running gateway. Onboarding saves configuration to <code>%USERPROFILE%\.openclaw\openclaw.json</code>, the default OpenClaw config
             path (see <code>https://docs.openclaw.ai/cli/onboard</code> and{" "}
             <code>https://docs.openclaw.ai/security</code>).
           </p>
@@ -413,8 +420,8 @@ export function StepConfigure({ language, state, setState, setError, onNext, onB
                 </>
               ) : (
                 language === "zh"
-                  ? "运行 openclaw onboard --non-interactive"
-                  : "Run openclaw onboard --non-interactive"
+                  ? `运行 ${onboardCommand}`
+                  : `Run ${onboardCommand}`
               )}
             </button>
           ) : (
